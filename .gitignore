@@ -1,0 +1,4 @@
+nimchache
+tests/*
+!*.nim
+!testresults*
