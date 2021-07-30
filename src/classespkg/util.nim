@@ -58,7 +58,6 @@ func determineStatus(node; isPub: bool): ClassStatus =
     error("cannot parse.", node)
 
 
-
 func parseClassName*(className: NimNode): ClassStatus =
   case className.len
   of 0:
@@ -77,3 +76,16 @@ func parseClassName*(className: NimNode): ClassStatus =
     error("cannot parse.", className)
   else:
     error("too many arguments", className)
+
+
+template defObj*(className, baseName) =
+  type className = ref object of baseName
+
+template defObjPub*(className, baseName) =
+  type className* = ref object of baseName
+
+template defDistinct*(className, baseName) =
+  type className = distinct baseName
+
+template defDistinctPub*(className, baseName) =
+  type className* = distinct baseName
