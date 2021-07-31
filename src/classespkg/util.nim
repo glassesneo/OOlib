@@ -89,3 +89,13 @@ template defDistinct*(className, baseName) =
 
 template defDistinctPub*(className, baseName) =
   type className* = distinct baseName
+
+
+func defClassBody*(body: NimNode): NimNode =
+  result = newNimNode(nnkRecList)
+  for node in body.children:
+    case node.kind
+    of nnkVarSection:
+      for n in node: result.add n
+    else:
+      error("cannot parse.", body)
