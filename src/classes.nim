@@ -23,15 +23,16 @@ func defClass(status: ClassStatus): NimNode =
   result = newStmtList classDef
 
 
-macro class*(name, body: untyped): untyped =
+macro class*(head, body: untyped): untyped =
   let
-    status = parseClassName(name)
+    status = parseClassName(head)
+  var
     recList = newNimNode(nnkRecList)
   result = defClass(status)
   for node in body.children:
     case node.kind
     of nnkVarSection:
-      for n in node: recList.add n
+      node.copyChildrenTo recList
     of nnkProcDef, nnkFuncDef, nnkMethodDef, nnkIteratorDef, nnkTemplateDef:
       result.add node.insertSelf(status.name)
     of nnkDiscardStmt:
