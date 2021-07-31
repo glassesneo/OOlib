@@ -91,11 +91,6 @@ template defDistinctPub*(className, baseName) =
   type className* = distinct baseName
 
 
-func defClassBody*(body: NimNode): NimNode =
-  result = newNimNode(nnkRecList)
-  for node in body.children:
-    case node.kind
-    of nnkVarSection:
-      for n in node: result.add n
-    else:
-      error("cannot parse.", body)
+func insertSelf*(node; name: NimNode): NimNode =
+  result = node
+  result.params.insert(1, newIdentDefs(ident"self", name))

@@ -24,5 +24,18 @@ func defClass(status: ClassStatus): NimNode =
 
 
 macro class*(name, body: untyped): untyped =
-  result = defClass parseClassName(name)
-  result[0][0][2][0][2] = defClassBody(body)
+  let
+    status = parseClassName(name)
+    recList = newNimNode(nnkRecList)
+  result = defClass(status)
+  for node in body.children:
+    case node.kind
+    of nnkVarSection:
+      for n in node: recList.add n
+    of nnkProcDef, nnkFuncDef, nnkMethodDef, nnkIteratorDef, nnkTemplateDef:
+      result.add node.insertSelf(status.name)
+    of nnkDiscardStmt:
+      return
+    else:
+      error("cannot parse.", body)
+  result[0][0][2][0][2] = recList
