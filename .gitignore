@@ -1,0 +1,3 @@
+nimchache
+tests/*
+!*.nim
