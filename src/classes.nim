@@ -28,8 +28,9 @@ macro class*(head, body: untyped): untyped =
     status = parseClassName(head)
   var
     recList = newNimNode(nnkRecList)
-    paramsList: seq[NimNode]
+    paramsList, hasDefaultParamsList: seq[NimNode]
     hasConstructor = false
+    constructorNode: NimNode
   result = defClass(status)
   for node in body.children:
     case node.kind
@@ -38,29 +39,42 @@ macro class*(head, body: untyped): untyped =
         if n[n.len-2].kind == nnkEmpty:
           error("please write the variable type. `class` macro does not have type inference.", n)
         paramsList.add n
+        if n.last.kind != nnkEmpty:
+          hasDefaultParamsList.add n
         recList.add delValue(n)
     of nnkProcDef, nnkFuncDef, nnkMethodDef, nnkIteratorDef, nnkTemplateDef:
       if node.isConstructor:
+        if hasConstructor: error("constructor already exists.", node)
         hasConstructor = true
+        constructorNode = node
       else:
         result.add node.insertSelf(status.name)
     of nnkDiscardStmt:
       return
     else:
       error("cannot parse.", body)
+  for n in hasDefaultParamsList: echo n.treeRepr
   if hasConstructor:
-    discard
+    result.insert(
+      1,
+      insertStatementsInNew(
+        status.name,
+        constructorNode,
+        hasDefaultParamsList
+      )
+    )
   else:
     let
       newName = block:
         if status.isPub:
           newNimNode(nnkPostfix).add(
             ident "*",
-            ident "new"&status.name.strVal
+            ident "new" & status.name.strVal
           )
         else:
-          ident "new"&status.name.strVal
+          ident "new" & status.name.strVal
       params = status.name & paramsList
-      newBody = genNewBody(status.name, decomposeNameOfVariables paramsList.toRecList)
+      newBody = genNewBody(status.name, decomposeNameOfVariables paramsList)
     result.insert(1, newProc(newName, params, newBody))
   result[0][0][2][0][2] = recList
+  echo result.treeRepr

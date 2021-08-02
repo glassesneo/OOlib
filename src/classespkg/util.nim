@@ -1,5 +1,5 @@
 {.experimental: "strictFuncs".}
-import macros
+import macros, algorithm
 
 using
   node: NimNode
@@ -99,7 +99,7 @@ func insertSelf*(node; name: NimNode): NimNode =
 
 func isConstructor*(node): bool =
   result =
-    node.kind == nnkAccQuoted and node.name.eqIdent"new"
+    node[0].kind == nnkAccQuoted and node.name.eqIdent"new"
 
 
 func delValue*(node): NimNode =
@@ -115,8 +115,8 @@ proc toSeq*(node): seq[NimNode] =
     echo n.last.kind
 
 
-func decomposeNameOfVariables*(node; ): seq[NimNode] =
-  for def in node:
+func decomposeNameOfVariables*(s: seq[NimNode]): seq[NimNode] =
+  for def in s:
     for v in def[0..(def.len - 3)]:
       result.add v
 
@@ -131,8 +131,48 @@ template asgnInNew*(name) =
   self.name = name
 
 
+func newSelfStmt*(name: NimNode): NimNode =
+  result = newVarStmt(ident "self", newCall name)
+
+
+func newResultAssignment*: NimNode =
+  result = newAssignment(ident "result", ident "self")
+
+
 proc genNewBody*(name: NimNode; vars: seq[NimNode]): NimNode =
-  result = newStmtList newVarStmt(ident "self", newCall name)
+  result = newStmtList newSelfStmt(name)
   for v in vars:
     result.insert(1, getAst(asgnInNew v))
-  result.add newAssignment(ident "result", ident "self")
+  result.add newResultAssignment()
+
+
+proc insertNewParams*(params: NimNode; vars: seq[NimNode]): NimNode =
+  result = params
+  for v in vars.reversed:
+    # params[0] must be return type
+    result.insert(1, v)
+
+
+func insertNewBody(typeName, body: NimNode; vars: seq[NimNode]): NimNode =
+  result = body
+  if body[0].kind == nnkDiscardStmt:
+    return
+  result.insert(0, newSelfStmt(typeName))
+  for v in vars:
+    result.insert(1, getAst(asgnInNew v))
+  result.add newResultAssignment()
+
+
+func replaceReturnTypeWith(params: NimNode; typeName: NimNode): NimNode =
+  result = params
+  result[0] = typeName
+
+
+proc insertStatementsInNew*(typeName, constructor: NimNode; defs: seq[
+    NimNode]): NimNode =
+  result = constructor
+  result.name = ident("new" & typeName.strVal)
+  result.params = insertNewParams(constructor.params,
+      defs).replaceReturnTypeWith(typeName)
+  result.body = insertNewBody(typeName, constructor.body,
+      decomposeNameOfVariables defs)
