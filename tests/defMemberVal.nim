@@ -4,13 +4,14 @@ discard """
 import ../src/classes
 
 class A:
-  var a: int
-  var b: string
+  var
+    a: int = 0
+    b: string = ""
 
 class B:
-  var c, d: float
+  var c: bool
+  var d: bool = true
 
 class C:
-  var
-    e: bool
-    f, g: seq[int]
+  var e: float
+  var f, g: seq[string] = @["", ""]

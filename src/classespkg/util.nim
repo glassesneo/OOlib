@@ -25,6 +25,7 @@ func newClassStatus(isPub = false; kind = Normal; name: NimNode;
     base: base
   )
 
+
 func isDistinct(node): bool =
   ## node.kind must be nnkCall
   result = node[1].kind == nnkDistinctTy
@@ -94,3 +95,44 @@ template defDistinctPub*(className, baseName) =
 func insertSelf*(node; name: NimNode): NimNode =
   result = node
   result.params.insert(1, newIdentDefs(ident"self", name))
+
+
+func isConstructor*(node): bool =
+  result =
+    node.kind == nnkAccQuoted and node.name.eqIdent"new"
+
+
+func delValue*(node): NimNode =
+  result = node
+  if node.last.kind != nnkEmpty:
+    result[result.len-1] = newEmptyNode()
+
+
+proc toSeq*(node): seq[NimNode] =
+  node.expectKind nnkRecList
+  for n in node.children:
+    result.add n
+    echo n.last.kind
+
+
+func decomposeNameOfVariables*(node; ): seq[NimNode] =
+  for def in node:
+    for v in def[0..(def.len - 3)]:
+      result.add v
+
+
+func toRecList*(s: seq[NimNode]): NimNode =
+  result = newNimNode(nnkRecList)
+  for n in s:
+    result.add n
+
+
+template asgnInNew*(name) =
+  self.name = name
+
+
+proc genNewBody*(name: NimNode; vars: seq[NimNode]): NimNode =
+  result = newStmtList newVarStmt(ident "self", newCall name)
+  for v in vars:
+    result.insert(1, getAst(asgnInNew v))
+  result.add newAssignment(ident "result", ident "self")

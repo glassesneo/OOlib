@@ -28,15 +28,39 @@ macro class*(head, body: untyped): untyped =
     status = parseClassName(head)
   var
     recList = newNimNode(nnkRecList)
+    paramsList: seq[NimNode]
+    hasConstructor = false
   result = defClass(status)
   for node in body.children:
     case node.kind
     of nnkVarSection:
-      node.copyChildrenTo recList
+      for n in node.children:
+        if n[n.len-2].kind == nnkEmpty:
+          error("please write the variable type. `class` macro does not have type inference.", n)
+        paramsList.add n
+        recList.add delValue(n)
     of nnkProcDef, nnkFuncDef, nnkMethodDef, nnkIteratorDef, nnkTemplateDef:
-      result.add node.insertSelf(status.name)
+      if node.isConstructor:
+        hasConstructor = true
+      else:
+        result.add node.insertSelf(status.name)
     of nnkDiscardStmt:
       return
     else:
       error("cannot parse.", body)
+  if hasConstructor:
+    discard
+  else:
+    let
+      newName = block:
+        if status.isPub:
+          newNimNode(nnkPostfix).add(
+            ident "*",
+            ident "new"&status.name.strVal
+          )
+        else:
+          ident "new"&status.name.strVal
+      params = status.name & paramsList
+      newBody = genNewBody(status.name, decomposeNameOfVariables paramsList.toRecList)
+    result.insert(1, newProc(newName, params, newBody))
   result[0][0][2][0][2] = recList
