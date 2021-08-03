@@ -2,7 +2,7 @@ discard """
   action: "run"
 """
 import unittest
-import ../src/classes
+import ../src/oolib
 
 class A:
   var

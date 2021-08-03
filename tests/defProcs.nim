@@ -1,7 +1,7 @@
 discard """
   action: "compile"
 """
-import ../src/classes
+import ../src/oolib
 
 class pub A:
   var n: int

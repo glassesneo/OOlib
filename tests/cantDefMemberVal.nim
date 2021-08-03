@@ -2,7 +2,7 @@ discard """
   action: "reject"
   exitcode: 1
 """
-import ../src/classes
+import ../src/oolib
 
 class A:
   var a = 1

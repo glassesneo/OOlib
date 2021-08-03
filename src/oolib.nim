@@ -1,5 +1,5 @@
 import macros
-import classespkg / [util]
+import oolibpkg / [util]
 
 
 func defClass(status: ClassStatus): NimNode =
