@@ -1,55 +1,49 @@
-# 👑classes
-**classes is currently work in progress**🔥
+# 👑OOlib
+**OOlib is currently work in progress**🔥
 
 
 ## 🗺Overview
-classes is a syntax sugar which provides user-defined types, procedures, etc...
+OOlib is a syntax sugar which provides user-defined types, procedures, etc...
 
 
 ## 📜Usage
 ```nim
 import strformat
-import classes
+import oolib
 
 
 # add `pub` prefix to publish class
 class pub Person:
   var
     name*: string
-    age: int
-    height, weight: float
+    age*: int = 0
 
-  # automatically insert `self` as first argument
-  proc happyBirthday =
+  # auto insert `self` as first argument
+  proc `$`*: string = fmt"<Person> name: {self.name}"
+
+  proc happyBirthday* =
     inc self.age
 
-  method greeting {.base.} =
-    echo fmt"Hello, I'm {self.name}."
 
-  # support for `template`
-  template p =
-    # do something
-
-
-class BusinessPerson of Person:
-  var workspace: string
-
-  method greeting =
-    echo fmt"Hello, I'm {self.name} from {self.workspace} Inc."
+# auto define constructor
+let p = newPerson("myName")
 ```
 
 
 ## ✨Features
-- Can parse some modifiers. (e.g. `pub`, `of`, `distinct`)
-- Support for `proc`, `method`, `func`, `iterator`, `template`.
-- Can inherit an object.
-- Automatically insert `self` as first argument.
+- Member variables with default values
+- Defining `proc`, `method`, `func`, etc... (the two exceptions being `converter` and `macro`)
+- Auto inserting `self` as first argument
+- Auto defining constructor (high performance!)
+- Assistance with constructor definition
+- `pub` modifier instead of `*`
+- Inheritance with `of` modifier (for now, only object can be inherited)
+- Creating Distinct type with `distinct` modifier
 
 ### 💭Planned
-- Support for more modifiers. (e.g. `[T]`, `{.pragma.}`, `ref`)
-- Define `let` variables.
-- Provide `super` keyword for `method`.
-- Define constructor easily.
+- Support for more modifiers (e.g. `[T]`, `{.pragma.}`)
+- `let` member variables
+- `super` keyword for `method`.
 
 
 ## License
