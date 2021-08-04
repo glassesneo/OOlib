@@ -39,6 +39,7 @@ let p = newPerson("myName")
 - `pub` modifier instead of `*`
 - Inheritance with `of` modifier (for now, only object can be inherited)
 - Creating Distinct type with `distinct` modifier
+- `{.open.}` to allow inheritance
 
 ### 💭Planned
 - Support for more modifiers (e.g. `[T]`, `{.pragma.}`)
