@@ -47,7 +47,7 @@ macro class*(head, body: untyped): untyped =
         constructorNode = node
       else:
         result.add node.insertSelf(status.name)
-    of nnkFuncDef, nnkMethodDef, nnkIteratorDef, nnkTemplateDef:
+    of nnkFuncDef, nnkMethodDef, nnkIteratorDef, nnkConverterDef, nnkTemplateDef:
       result.add node.insertSelf(status.name)
     of nnkDiscardStmt:
       return
