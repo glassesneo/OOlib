@@ -11,15 +11,16 @@ type
     Distinct
 
   ClassStatus* = object
-    isPub*: bool
+    isPub*, isOpen*: bool
     kind*: ClassKind
     name*, base*: NimNode
 
 
-func newClassStatus(isPub = false; kind = Normal; name: NimNode;
+func newClassStatus(isPub, isOpen = false; kind = Normal; name: NimNode;
     base = "RootObj".ident): ClassStatus =
   result = ClassStatus(
     isPub: isPub,
+    isOpen: isOpen,
     kind: kind,
     name: name,
     base: base
@@ -28,12 +29,18 @@ func newClassStatus(isPub = false; kind = Normal; name: NimNode;
 
 func isDistinct(node): bool =
   ## node.kind must be nnkCall
-  result = node[1].kind == nnkDistinctTy
+  result =
+    node.kind == nnkCall and node[1].kind == nnkDistinctTy
 
 
 func isPub(node): bool =
   result =
     node.kind == nnkCommand and node[0].eqIdent"pub"
+
+
+func isOpen(node): bool =
+  result =
+    node.kind == nnkPragmaExpr and node[1][0].eqIdent"open"
 
 
 func isInheritance(node): bool =
@@ -44,17 +51,52 @@ func isInheritance(node): bool =
 func determineStatus(node; isPub: bool): ClassStatus =
   case node.kind
   of nnkIdent:
-    result = newClassStatus(isPub = isPub, kind = Normal, name = node)
+    result = newClassStatus(
+      isPub = isPub,
+      kind = Normal,
+      name = node
+    )
   of nnkCall:
     if node.isDistinct:
-      return newClassStatus(isPub = isPub, kind = Distinct, name = node[
-          0], base = node[1][0])
+      return newClassStatus(
+        isPub = isPub,
+        kind = Distinct,
+        name = node[0],
+        base = node[1][0]
+      )
     error "not enough arguments in the bracket."
   of nnkInfix:
     if node.isInheritance:
-      return newClassStatus(isPub = isPub, kind = Inheritance, name = node[
-          1], base = node[2])
+      if node[2].isOpen:
+        return newClassStatus(
+          isPub = isPub,
+          isOpen = true,
+          kind = Inheritance,
+          name = node[1],
+          base = node[2][0]
+        )
+      return newClassStatus(
+        isPub = isPub,
+        kind = Inheritance,
+        name = node[1],
+        base = node[2]
+      )
     error("cannot parse.", node)
+  of nnkPragmaExpr:
+    if node.isOpen:
+      if node[0].isDistinct:
+        return newClassStatus(
+          isPub = isPub,
+          isOpen = true,
+          kind = Distinct,
+          name = node[0][0],
+          base = node[0][1][0]
+        )
+      return newClassStatus(isPub = isPub,
+        isOpen = true,
+        name = node[0]
+      )
+    error "cannot parse."
   else:
     error("cannot parse.", node)
 
@@ -80,16 +122,16 @@ func parseClassName*(className: NimNode): ClassStatus =
 
 
 template defObj*(className, baseName) =
-  type className = ref object of baseName
+  type className {.final.} = ref object of baseName
 
 template defObjPub*(className, baseName) =
-  type className* = ref object of baseName
+  type className* {.final.} = ref object of baseName
 
 template defDistinct*(className, baseName) =
-  type className = distinct baseName
+  type className {.final.} = distinct baseName
 
 template defDistinctPub*(className, baseName) =
-  type className* = distinct baseName
+  type className* {.final.} = distinct baseName
 
 
 func insertSelf*(node; name: NimNode): NimNode =
@@ -176,3 +218,8 @@ proc insertStatementsInNew*(typeName, constructor: NimNode; defs: seq[
       defs).replaceReturnTypeWith(typeName)
   result.body = insertNewBody(typeName, constructor.body,
       decomposeNameOfVariables defs)
+
+
+func isAbstract*(node): bool =
+  result =
+    node.kind == nnkMethodDef and node.last.kind == nnkEmpty

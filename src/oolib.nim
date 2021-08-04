@@ -3,14 +3,9 @@ import oolibpkg / [util]
 
 
 func defClass(status: ClassStatus): NimNode =
-  let classDef = block:
+  var classDef = block:
     case status.kind
-    of Normal:
-      if status.isPub:
-        getAst defObjPub(status.name, RootObj)
-      else:
-        getAst defObj(status.name, RootObj)
-    of Inheritance:
+    of Normal, Inheritance:
       if status.isPub:
         getAst defObjPub(status.name, status.base)
       else:
@@ -20,6 +15,9 @@ func defClass(status: ClassStatus): NimNode =
         getAst defDistinctPub(status.name, status.base)
       else:
         getAst defDistinct(status.name, status.base)
+
+  if status.isOpen:
+    classDef[0][0] = classDef[0][0][0]
   result = newStmtList classDef
 
 
@@ -42,13 +40,15 @@ macro class*(head, body: untyped): untyped =
         if n.last.kind != nnkEmpty:
           hasDefaultParamsList.add n
         recList.add delValue(n)
-    of nnkProcDef, nnkFuncDef, nnkMethodDef, nnkIteratorDef, nnkTemplateDef:
+    of nnkProcDef:
       if node.isConstructor:
         if hasConstructor: error("constructor already exists.", node)
         hasConstructor = true
         constructorNode = node
       else:
         result.add node.insertSelf(status.name)
+    of nnkFuncDef, nnkMethodDef, nnkIteratorDef, nnkTemplateDef:
+      result.add node.insertSelf(status.name)
     of nnkDiscardStmt:
       return
     else:
