@@ -32,7 +32,7 @@ let p = newPerson("myName")
 
 ## ✨Features
 - Member variables with default values
-- Defining `proc`, `method`, `func`, etc... (the only exceptions being `macro`)
+- Defining `proc`, `method`, `func`, etc... (the only exception being `macro`)
 - Auto inserting `self` as first argument
 - Auto defining constructor (high performance!)
 - Assistance with constructor definition
