@@ -1,6 +1,7 @@
 discard """
-  action: "compile"
+  action: "run"
 """
+import unittest
 import ../src/oolib
 
 class A:
@@ -8,10 +9,9 @@ class A:
     a: int = 0
     b: string = ""
 
-class B:
-  var c: bool
-  var d: bool = true
 
-class C:
-  var e: float
-  var f, g: seq[string] = @["", ""]
+let
+  a = A(a: 5, b: "aa")
+
+check a.a == 5
+check a.b == "aa"

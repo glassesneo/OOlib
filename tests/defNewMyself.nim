@@ -31,5 +31,8 @@ let
 
 check a.a == 2 and a.b == "2"
 check b1.c == "" and b1.d == ""
+check b1.e
 check b2.c == "aaa"
+check not b2.e
 check b3.d == "bbb"
+check not b3.e
