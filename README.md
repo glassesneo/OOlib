@@ -1,4 +1,6 @@
 # 👑OOlib
+![icon](./oolib.png)
+
 **OOlib is currently work in progress**🔥
 
 
@@ -26,25 +28,26 @@ class pub Person:
 
 
 # auto define constructor
-let p = newPerson("myName")
+let p = newPerson("Tony")
 ```
 
 
 ## ✨Features
 - Member variables with default values
-- Defining `proc`, `method`, `func`, etc... (the only exception being `macro`)
+- Definition of `proc`, `method`, `func`, etc... (the only exception being `macro`)
 - Auto inserting `self` as first argument
-- Auto defining constructor (high performance!)
+- Auto definition of constructor (high performance!)
 - Assistance with constructor definition
 - `pub` modifier instead of `*`
 - Inheritance with `of` modifier (for now, only object can be inherited)
-- Creating Distinct type with `distinct` modifier
+- Creating distinct type with `distinct` modifier
+- `{.final.}` by default
 - `{.open.}` to allow inheritance
 
 ### 💭Planned
 - Support for more modifiers (e.g. `[T]`, `{.pragma.}`)
 - `let` member variables
-- `super` keyword for `method`.
+- `super` keyword for `method`
 
 
 ## License
