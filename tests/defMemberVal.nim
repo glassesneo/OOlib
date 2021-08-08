@@ -6,8 +6,8 @@ import ../src/oolib
 
 class A:
   var
-    a: int = 0
-    b: string = ""
+    a: int
+    b: string
 
 
 let

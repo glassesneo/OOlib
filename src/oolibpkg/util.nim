@@ -1,8 +1,12 @@
 {.experimental: "strictFuncs".}
-import macros, algorithm
+{.experimental: "codeReordering".}
+import macros
+import tmpl
+
 
 using
-  node: NimNode
+  node, constructor, theProc, typeName: NimNode
+
 
 type
   ClassKind* = enum
@@ -10,15 +14,20 @@ type
     Inheritance
     Distinct
 
-  ClassStatus* = object
-    isPub*, isOpen*: bool
-    kind*: ClassKind
-    name*, base*: NimNode
+  ClassStatus* = tuple
+    isPub, isOpen: bool
+    kind: ClassKind
+    name, base: NimNode
 
 
-func newClassStatus(isPub, isOpen = false; kind = Normal; name: NimNode;
-    base = "RootObj".ident): ClassStatus =
-  result = ClassStatus(
+func newClassStatus(
+    isPub,
+    isOpen = false;
+    kind = Normal;
+    name = ident "";
+    base = ident "RootObj"
+): ClassStatus =
+  (
     isPub: isPub,
     isOpen: isOpen,
     kind: kind,
@@ -27,33 +36,43 @@ func newClassStatus(isPub, isOpen = false; kind = Normal; name: NimNode;
   )
 
 
-func isDistinct(node): bool =
-  ## node.kind must be nnkCall
-  result =
-    node.kind == nnkCall and node[1].kind == nnkDistinctTy
+func isDistinct(node): bool {.compileTime.} =
+  node.kind == nnkCall and node[1].kind == nnkDistinctTy
 
 
-func isPub(node): bool =
-  result =
-    node.kind == nnkCommand and node[0].eqIdent"pub"
+func isPub(node): bool {.compileTime.} =
+  node.kind == nnkCommand and node[0].eqIdent"pub"
 
 
-func isOpen(node): bool =
-  result =
-    node.kind == nnkPragmaExpr and node[1][0].eqIdent"open"
+func isOpen(node): bool {.compileTime.} =
+  node.kind == nnkPragmaExpr and node[1][0].eqIdent"open"
 
 
-func isInheritance(node): bool =
-  ## node.kind must be nnkInfix
-  result = node[0].eqIdent"of"
+func isInheritance(node): bool {.compileTime.} =
+  node.kind == nnkInfix and node[0].eqIdent"of"
 
 
-func determineStatus(node; isPub: bool): ClassStatus =
+func isAbstract*(node): bool {.compileTime.} =
+  node.kind == nnkMethodDef and node.last.kind == nnkEmpty
+
+
+func isConstructor*(node): bool {.compileTime.} =
+  node[0].kind == nnkAccQuoted and node.name.eqIdent"new"
+
+
+func isEmpty*(node): bool {.compileTime.} =
+  node.kind == nnkEmpty
+
+
+func newPostfix(node): NimNode {.compileTime.} =
+  newNimNode(nnkPostfix).add(ident "*", node)
+
+
+proc determineStatus(node; isPub: bool): ClassStatus {.compileTime.} =
   case node.kind
   of nnkIdent:
     result = newClassStatus(
       isPub = isPub,
-      kind = Normal,
       name = node
     )
   of nnkCall:
@@ -64,162 +83,180 @@ func determineStatus(node; isPub: bool): ClassStatus =
         name = node[0],
         base = node[1][0]
       )
-    error "not enough arguments in the bracket."
+    error "not enough arguments in the bracket.", node
   of nnkInfix:
     if node.isInheritance:
-      if node[2].isOpen:
-        return newClassStatus(
-          isPub = isPub,
-          isOpen = true,
-          kind = Inheritance,
-          name = node[1],
-          base = node[2][0]
-        )
-      return newClassStatus(
+      result = newClassStatus(
         isPub = isPub,
         kind = Inheritance,
-        name = node[1],
-        base = node[2]
+        name = node[1]
       )
-    error("cannot parse.", node)
+      if node[2].isOpen:
+        result.isOpen = true
+        result.base = node[2][0]
+        return
+      result.base = node[2]
+      return
+    error "cannot parse.", node
   of nnkPragmaExpr:
     if node.isOpen:
-      if node[0].isDistinct:
-        return newClassStatus(
-          isPub = isPub,
-          isOpen = true,
-          kind = Distinct,
-          name = node[0][0],
-          base = node[0][1][0]
-        )
-      return newClassStatus(isPub = isPub,
+      result = newClassStatus(
+        isPub = isPub,
         isOpen = true,
-        name = node[0]
       )
-    error "cannot parse."
+      if node[0].isDistinct:
+        result.kind = Distinct
+        result.name = node[0][0]
+        result.base = node[0][1][0]
+        return
+      result.name = node[0]
+      return
+    error "cannot parse.", node
   else:
-    error("cannot parse.", node)
+    error "cannot parse.", node
 
 
-func parseClassName*(className: NimNode): ClassStatus =
-  case className.len
-  of 0:
-    result = newClassStatus(name = className)
-  of 1:
-    error("not enough argument.", className)
-  of 2:
-    result = if className.isPub:
-      determineStatus(className[1], className.isPub)
-      else:
-        determineStatus(className, className.isPub)
-  of 3:
-    if className.kind == nnkInfix and className.isInheritance:
-      return newClassStatus(kind = Inheritance, name = className[1],
-          base = className[2])
-    error("cannot parse.", className)
-  else:
-    error("too many arguments", className)
+func insertIn1st*(node; inserted: NimNode) {.compileTime.} =
+  node.insert(1, inserted)
 
 
-template defObj*(className, baseName) =
-  type className {.final.} = ref object of baseName
-
-template defObjPub*(className, baseName) =
-  type className* {.final.} = ref object of baseName
-
-template defDistinct*(className, baseName) =
-  type className {.final.} = distinct baseName
-
-template defDistinctPub*(className, baseName) =
-  type className* {.final.} = distinct baseName
-
-
-func insertSelf*(node; name: NimNode): NimNode =
+func insertSelf*(node; typeName): NimNode {.discardable, compileTime.} =
   result = node
-  result.params.insert(1, newIdentDefs(ident"self", name))
+  result.params.insertIn1st(newIdentDefs(ident "self", typeName))
 
 
-func isConstructor*(node): bool =
-  result =
-    node[0].kind == nnkAccQuoted and node.name.eqIdent"new"
+proc insertArgs(
+    constructor;
+    vars: seq[NimNode]
+): NimNode {.discardable, compileTime.} =
+  result = constructor
+  for v in vars[0..^1]:
+    result.params.insertIn1st(v)
 
 
-func delValue*(node): NimNode =
+func insertBody(
+    constructor,
+    typeName;
+    vars: seq[NimNode]
+): NimNode {.discardable, compileTime.} =
+  result = constructor
+  if result.body[0].kind == nnkDiscardStmt:
+    return
+  result.body.insert(0, newSelfStmt(typeName))
+  for v in vars:
+    result.body.insertIn1st(astOfAsgnWith v)
+  result.body.add newResultAsgn()
+
+
+func replaceReturnTypeWith(
+    constructor,
+    typeName
+): NimNode {.discardable, compileTime.} =
+  result = constructor
+  result.params[0] = typeName
+
+
+func astOfAsgnWith(v: NimNode): NimNode {.discardable, compileTime.} =
+  getAst asgnWith(v)
+
+
+func newSelfStmt(typeName): NimNode {.compileTime.} =
+  newVarStmt(ident "self", newCall typeName)
+
+
+func newResultAsgn: NimNode {.compileTime.} =
+  newAssignment(ident "result", ident "self")
+
+
+proc parseHead*(head: NimNode): ClassStatus {.compileTime.} =
+  case head.len
+  of 0:
+    result = newClassStatus(name = head)
+  of 1:
+    error "not enough argument.", head
+  of 2:
+    result =
+      if head.isPub:
+        determineStatus(head[1], head.isPub)
+      else:
+        determineStatus(head, head.isPub)
+  of 3:
+    if head.kind == nnkInfix and head.isInheritance:
+      return newClassStatus(
+        kind = Inheritance,
+        name = head[1],
+        base = head[2]
+      )
+    error "cannot parse.", head
+  else:
+    error "too many arguments", head
+
+
+func delValue*(node): NimNode {.discardable, compileTime.} =
   result = node
   if node.last.kind != nnkEmpty:
-    result[result.len-1] = newEmptyNode()
+    result[^1] = newEmptyNode()
 
 
-proc toSeq*(node): seq[NimNode] =
-  node.expectKind nnkRecList
-  for n in node.children:
-    result.add n
-    echo n.last.kind
-
-
-func decomposeNameOfVariables*(s: seq[NimNode]): seq[NimNode] =
+func decomposeNameOfVariables*(s: seq[NimNode]): seq[NimNode] {.compileTime.} =
   for def in s:
     for v in def[0..(def.len - 3)]:
       result.add v
 
 
-func toRecList*(s: seq[NimNode]): NimNode =
-  result = newNimNode(nnkRecList)
-  for n in s:
-    result.add n
-
-
-template asgnInNew*(name) =
-  self.name = name
-
-
-func newSelfStmt*(name: NimNode): NimNode =
-  result = newVarStmt(ident "self", newCall name)
-
-
-func newResultAssignment*: NimNode =
-  result = newAssignment(ident "result", ident "self")
-
-
-proc genNewBody*(name: NimNode; vars: seq[NimNode]): NimNode =
-  result = newStmtList newSelfStmt(name)
+proc genNewBody*(typeName: NimNode; vars: seq[NimNode]): NimNode {.compileTime.} =
+  result = newStmtList newSelfStmt(typeName)
   for v in vars:
-    result.insert(1, getAst(asgnInNew v))
-  result.add newResultAssignment()
+    result.insertIn1st(astOfAsgnWith v)
+  result.add newResultAsgn()
 
 
-proc insertNewParams*(params: NimNode; vars: seq[NimNode]): NimNode =
-  result = params
-  for v in vars.reversed:
-    # params[0] must be return type
-    result.insert(1, v)
-
-
-func insertNewBody(typeName, body: NimNode; vars: seq[NimNode]): NimNode =
-  result = body
-  if body[0].kind == nnkDiscardStmt:
-    return
-  result.insert(0, newSelfStmt(typeName))
-  for v in vars:
-    result.insert(1, getAst(asgnInNew v))
-  result.add newResultAssignment()
-
-
-func replaceReturnTypeWith(params: NimNode; typeName: NimNode): NimNode =
-  result = params
-  result[0] = typeName
-
-
-proc insertStatementsInNew*(typeName, constructor: NimNode; defs: seq[
-    NimNode]): NimNode =
+proc insertStmts*(
+    constructor,
+    typeName;
+    args: seq[NimNode]
+): NimNode {.discardable, compileTime.} =
   result = constructor
-  result.name = ident("new" & typeName.strVal)
-  result.params = insertNewParams(constructor.params,
-      defs).replaceReturnTypeWith(typeName)
-  result.body = insertNewBody(typeName, constructor.body,
-      decomposeNameOfVariables defs)
+  result.name = ident "new"&typeName.strVal
+  result
+    .insertArgs(args)
+    .replaceReturnTypeWith(typeName)
+    .insertBody(
+      typeName,
+      decomposeNameOfVariables args
+    )
 
 
-func isAbstract*(node): bool =
+func markWithAsterisk*(theProc): NimNode {.discardable, compileTime.} =
+  result = theProc
+  result.name = newPostfix(theProc.name)
+
+
+func getAstOfClassDef(status: ClassStatus): NimNode =
   result =
-    node.kind == nnkMethodDef and node.last.kind == nnkEmpty
+    case status.kind
+    of Normal, Inheritance:
+      getAst defObj(status.name, status.base)
+    of Distinct:
+      getAst defDistinct(status.name, status.base)
+  if status.isPub:
+    result[0][0][0] = newPostfix(result[0][0][0])
+  if status.isOpen:
+    result[0][0] = result[0][0][0]
+
+
+func defClass*(status: ClassStatus): NimNode {.compileTime.} =
+  newStmtList getAstOfClassDef(status)
+
+
+template genTheNew*(isPub: bool; b: untyped): NimNode =
+  block:
+    var
+      name {.inject.}: NimNode
+      params {.inject.}: seq[NimNode]
+      body {.inject.}: NimNode
+    b
+    if isPub:
+      newProc(name, params, body).markWithAsterisk()
+    else:
+      newProc(name, params, body)
