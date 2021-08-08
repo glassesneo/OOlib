@@ -16,14 +16,14 @@ macro class*(head, body: untyped): untyped =
     of nnkVarSection:
       for n in node.children:
         if n[^2].isEmpty:
-          error "please write the variable type. `class` macro does not have type inference.", n
+          error "Please write the variable type. `class` macro does not have type inference. #5", n
         argsList.add n
         if not n.last.isEmpty:
           hasDefaultArgsList.add n
         recList.add delValue(n)
     of nnkProcDef:
       if node.isConstructor:
-        if hasConstructor: error "constructor already exists.", node
+        if hasConstructor: error "Constructor already exists. #6", node
         hasConstructor = true
         constructorNode = node
       else:
@@ -33,7 +33,7 @@ macro class*(head, body: untyped): untyped =
     of nnkDiscardStmt:
       return
     else:
-      error "cannot parse.", body
+      error "Unsupported syntax #1", body
   for n in hasDefaultArgsList: echo n.treeRepr
   if hasConstructor:
     result.insertIn1st(

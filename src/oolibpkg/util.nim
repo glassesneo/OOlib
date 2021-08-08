@@ -83,7 +83,7 @@ proc determineStatus(node; isPub: bool): ClassStatus {.compileTime.} =
         name = node[0],
         base = node[1][0]
       )
-    error "not enough arguments in the bracket.", node
+    error "Missing `distinct` keyword. #4", node
   of nnkInfix:
     if node.isInheritance:
       result = newClassStatus(
@@ -97,7 +97,7 @@ proc determineStatus(node; isPub: bool): ClassStatus {.compileTime.} =
         return
       result.base = node[2]
       return
-    error "cannot parse.", node
+    error "Unsupported syntax. #1", node
   of nnkPragmaExpr:
     if node.isOpen:
       result = newClassStatus(
@@ -111,9 +111,9 @@ proc determineStatus(node; isPub: bool): ClassStatus {.compileTime.} =
         return
       result.name = node[0]
       return
-    error "cannot parse.", node
+    error "Unsupported pragma. #2", node
   else:
-    error "cannot parse.", node
+    error "Unsupported syntax. #1", node
 
 
 func insertIn1st*(node; inserted: NimNode) {.compileTime.} =
@@ -173,7 +173,7 @@ proc parseHead*(head: NimNode): ClassStatus {.compileTime.} =
   of 0:
     result = newClassStatus(name = head)
   of 1:
-    error "not enough argument.", head
+    error "Unsupported syntax. #1", head
   of 2:
     result =
       if head.isPub:
@@ -181,15 +181,15 @@ proc parseHead*(head: NimNode): ClassStatus {.compileTime.} =
       else:
         determineStatus(head, head.isPub)
   of 3:
-    if head.kind == nnkInfix and head.isInheritance:
+    if head.isInheritance:
       return newClassStatus(
         kind = Inheritance,
         name = head[1],
         base = head[2]
       )
-    error "cannot parse.", head
+    error "Unsupported syntax. #1", head
   else:
-    error "too many arguments", head
+    error "Too many arguments. #3", head
 
 
 func delValue*(node): NimNode {.discardable, compileTime.} =
