@@ -15,7 +15,7 @@ class A {.open.}:
 
 class B of A:
   method sampleMethod =
-    procCall A(self).sampleMethod()
+    super.sampleMethod()
     echo "concrete!"
 
 

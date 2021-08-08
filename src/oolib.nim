@@ -28,7 +28,13 @@ macro class*(head, body: untyped): untyped =
         constructorNode = node
       else:
         result.add node.insertSelf(status.name)
-    of nnkFuncDef, nnkMethodDef, nnkIteratorDef, nnkConverterDef, nnkTemplateDef:
+    of nnkMethodDef:
+      if status.kind == Inheritance:
+        node.body = replaceSuper(node.body)
+        result.add node.insertSelf(status.name).insertSuperStmt(status.base)
+      else:
+        result.add node.insertSelf(status.name)
+    of nnkFuncDef, nnkIteratorDef, nnkConverterDef, nnkTemplateDef:
       result.add node.insertSelf(status.name)
     of nnkDiscardStmt:
       return

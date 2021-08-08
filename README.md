@@ -43,11 +43,11 @@ let p = newPerson("Tony")
 - Creating distinct type with `distinct` modifier
 - `{.final.}` by default
 - `{.open.}` to allow inheritance
+- `super` keyword for `method`
 
 ### 💭Planned
 - Support for more modifiers (e.g. `[T]`, `{.pragma.}`)
 - `let` member variables
-- `super` keyword for `method`
 
 
 ## License
