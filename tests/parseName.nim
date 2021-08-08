@@ -1,9 +1,9 @@
 discard """
   action: "compile"
 """
-import ../src/oolib
+import ../src/classes
 
-class A {.open.}:
+class A:
   discard
 
 class pub B:

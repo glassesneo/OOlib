@@ -2,7 +2,7 @@
 
 version       = "0.1.0"
 author        = "Glasses-Neo"
-description   = "A nimble package which provides user-defined types, procedures, etc..."
+description   = "A new awesome nimble package"
 license       = "WTFPL"
 srcDir        = "src"
 

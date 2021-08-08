@@ -1,21 +1,9 @@
 discard """
-  action: "run"
-  output: '''
-A
-6
-6
-6
-6
-6
-6
-6
-B
-0
-'''
+  action: "compile"
 """
-import ../src/oolib
+import ../src/classes
 
-class pub A {.open.}:
+class pub A:
   var n: int
 
   proc `$`*: string = "A"
@@ -30,21 +18,3 @@ class pub A {.open.}:
   template loopNTimes*(body: untyped) =
     for i in 0..<self.n:
       body
-
-class pub B of A:
-  proc `$`*: string = "B"
-
-  method echoN* =
-    procCall A(self).echoN()
-
-
-let a = newA(5)
-echo $a
-a.inc
-a.echoN()
-a.loopNTimes:
-  echo a.returnN
-
-let b = newB()
-echo $b
-b.echoN()
