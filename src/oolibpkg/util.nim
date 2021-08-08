@@ -5,7 +5,7 @@ import tmpl
 
 
 using
-  node, constructor, theProc, typeName: NimNode
+  node, constructor, theProc, typeName, baseName: NimNode
 
 
 type
@@ -164,6 +164,15 @@ func newSelfStmt(typeName): NimNode {.compileTime.} =
   newVarStmt(ident "self", newCall typeName)
 
 
+func newSuperStmt*(baseName): NimNode {.compileTime.} =
+  newVarStmt(ident "super", newCall(baseName, ident "self"))
+
+
+func insertSuperStmt*(theProc; baseName): NimNode {.discardable, compileTime.} =
+  result = theProc
+  result.body.insert(0, newSuperStmt(baseName))
+
+
 func newResultAsgn: NimNode {.compileTime.} =
   newAssignment(ident "result", ident "self")
 
@@ -209,6 +218,22 @@ proc genNewBody*(typeName: NimNode; vars: seq[NimNode]): NimNode {.compileTime.}
   for v in vars:
     result.insertIn1st(astOfAsgnWith v)
   result.add newResultAsgn()
+
+
+proc replaceSuper*(node): NimNode =
+  result = node
+  if node.kind == nnkCall and
+    node[0].kind == nnkDotExpr and
+    node[0][0].eqIdent"super":
+    result = newTree(
+      nnkCommand,
+      ident "procCall",
+      copyNimTree(node)
+    )
+    echo result.treeRepr
+    return
+  for i, n in node:
+    result[i] = replaceSuper(n)
 
 
 proc insertStmts*(
