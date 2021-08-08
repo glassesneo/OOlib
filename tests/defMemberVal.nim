@@ -1,16 +1,17 @@
 discard """
-  action: "compile"
+  action: "run"
 """
-import ../src/classes
+import unittest
+import ../src/oolib
 
 class A:
-  var a: int
-  var b: string
-
-class B:
-  var c, d: float
-
-class C:
   var
-    e: bool
-    f, g: seq[int]
+    a: int
+    b: string
+
+
+let
+  a = A(a: 5, b: "aa")
+
+check a.a == 5
+check a.b == "aa"
