@@ -1,5 +1,5 @@
 import macros
-import oolibpkg / [util, helper]
+import oolibpkg / [util]
 
 
 macro class*(head, body: untyped): untyped =
@@ -15,10 +15,10 @@ macro class*(head, body: untyped): untyped =
     case node.kind
     of nnkVarSection:
       for n in node.children:
-        if n[n.len-2].kind == nnkEmpty:
+        if n[^2].isEmpty:
           error "please write the variable type. `class` macro does not have type inference.", n
         argsList.add n
-        if n.last.kind != nnkEmpty:
+        if not n.last.isEmpty:
           hasDefaultArgsList.add n
         recList.add delValue(n)
     of nnkProcDef:
@@ -36,11 +36,9 @@ macro class*(head, body: untyped): untyped =
       error "cannot parse.", body
   for n in hasDefaultArgsList: echo n.treeRepr
   if hasConstructor:
-    result.insert(
-      1,
-      insertStatementsInNew(
+    result.insertIn1st(
+      constructorNode.insertStmts(
         status.name,
-        constructorNode,
         hasDefaultArgsList
       )
     )
