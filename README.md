@@ -1,4 +1,8 @@
 # 👑OOlib
+![license](https://img.shields.io/github/license/Glasses-Neo/oolib?style=for-the-badge)
+![code size](https://img.shields.io/github/languages/code-size/Glasses-Neo/oolib?style=for-the-badge)<br/>
+[![nimble](https://raw.githubusercontent.com/yglukhov/nimble-tag/master/nimble_js.png)](https://github.com/yglukhov/nimble-tag)<br/>
+
 ![icon](./oolib.png)
 
 **OOlib is currently work in progress**🔥
@@ -48,6 +52,10 @@ let p = newPerson("Tony")
 ### 💭Planned
 - Support for more modifiers (e.g. `[T]`, `{.pragma.}`)
 - `let` member variables
+
+
+## 🥷Author
+[![Twitter](https://img.shields.io/twitter/follow/Glassesman10.svg?style=social&label=@Glassesman10)](https://twitter.com/Glassesman10)
 
 
 ## License
