@@ -1,5 +1,4 @@
 {.experimental: "strictFuncs".}
-{.experimental: "codeReordering".}
 import macros
 import tmpl
 
@@ -52,8 +51,16 @@ func isInheritance(node): bool {.compileTime.} =
   node.kind == nnkInfix and node[0].eqIdent"of"
 
 
-func isAbstract*(node): bool {.compileTime.} =
-  node.kind == nnkMethodDef and node.last.kind == nnkEmpty
+func isSuperFunc(node): bool {.compileTime.} =
+  node.kind == nnkCall and
+  node[0].kind == nnkDotExpr and
+  node[0][0].eqIdent"super"
+
+
+func hasAsterisk(node): bool {.compileTime.} =
+  node.len > 0 and
+  node.kind == nnkPostfix and
+  node[0].eqIdent"*"
 
 
 func isConstructor*(node): bool {.compileTime.} =
@@ -64,11 +71,47 @@ func isEmpty*(node): bool {.compileTime.} =
   node.kind == nnkEmpty
 
 
+func insertIn1st*(node; inserted: NimNode) {.compileTime.} =
+  node.insert 1, inserted
+
+
+func insertSelf*(node; typeName): NimNode {.discardable, compileTime.} =
+  result = node
+  result.params.insertIn1st newIdentDefs(ident "self", typeName)
+
+
+proc replaceSuper*(node): NimNode =
+  result = node
+  if node.isSuperFunc:
+    result = newTree(
+      nnkCommand,
+      ident "procCall",
+      copyNimTree(node)
+    )
+    return
+  for i, n in node:
+    result[i] = n.replaceSuper()
+
+
+func newSuperStmt(baseName): NimNode {.compileTime.} =
+  newVarStmt ident"super", newCall(baseName, ident "self")
+
+
+func insertSuperStmt*(theProc; baseName): NimNode {.discardable, compileTime.} =
+  result = theProc
+  result.body.insert 0, newSuperStmt(baseName)
+
+
+func delDefaultValue*(node): NimNode {.discardable, compileTime.} =
+  result = node
+  result[^1] = newEmptyNode()
+
+
 func newPostfix(node): NimNode {.compileTime.} =
-  newNimNode(nnkPostfix).add(ident "*", node)
+  newNimNode(nnkPostfix).add ident"*", node
 
 
-proc determineStatus(node; isPub: bool): ClassStatus {.compileTime.} =
+proc decideStatus(node; isPub: bool): ClassStatus {.compileTime.} =
   case node.kind
   of nnkIdent:
     result = newClassStatus(
@@ -103,78 +146,17 @@ proc determineStatus(node; isPub: bool): ClassStatus {.compileTime.} =
       result = newClassStatus(
         isPub = isPub,
         isOpen = true,
+        name = node[0]
       )
       if node[0].isDistinct:
         result.kind = Distinct
         result.name = node[0][0]
         result.base = node[0][1][0]
         return
-      result.name = node[0]
       return
     error "Unsupported pragma. #2", node
   else:
     error "Unsupported syntax. #1", node
-
-
-func insertIn1st*(node; inserted: NimNode) {.compileTime.} =
-  node.insert(1, inserted)
-
-
-func insertSelf*(node; typeName): NimNode {.discardable, compileTime.} =
-  result = node
-  result.params.insertIn1st(newIdentDefs(ident "self", typeName))
-
-
-proc insertArgs(
-    constructor;
-    vars: seq[NimNode]
-): NimNode {.discardable, compileTime.} =
-  result = constructor
-  for v in vars[0..^1]:
-    result.params.insertIn1st(v)
-
-
-func insertBody(
-    constructor,
-    typeName;
-    vars: seq[NimNode]
-): NimNode {.discardable, compileTime.} =
-  result = constructor
-  if result.body[0].kind == nnkDiscardStmt:
-    return
-  result.body.insert(0, newSelfStmt(typeName))
-  for v in vars:
-    result.body.insertIn1st(astOfAsgnWith v)
-  result.body.add newResultAsgn()
-
-
-func replaceReturnTypeWith(
-    constructor,
-    typeName
-): NimNode {.discardable, compileTime.} =
-  result = constructor
-  result.params[0] = typeName
-
-
-func astOfAsgnWith(v: NimNode): NimNode {.discardable, compileTime.} =
-  getAst asgnWith(v)
-
-
-func newSelfStmt(typeName): NimNode {.compileTime.} =
-  newVarStmt(ident "self", newCall typeName)
-
-
-func newSuperStmt*(baseName): NimNode {.compileTime.} =
-  newVarStmt(ident "super", newCall(baseName, ident "self"))
-
-
-func insertSuperStmt*(theProc; baseName): NimNode {.discardable, compileTime.} =
-  result = theProc
-  result.body.insert(0, newSuperStmt(baseName))
-
-
-func newResultAsgn: NimNode {.compileTime.} =
-  newAssignment(ident "result", ident "self")
 
 
 proc parseHead*(head: NimNode): ClassStatus {.compileTime.} =
@@ -184,11 +166,10 @@ proc parseHead*(head: NimNode): ClassStatus {.compileTime.} =
   of 1:
     error "Unsupported syntax. #1", head
   of 2:
-    result =
-      if head.isPub:
-        determineStatus(head[1], head.isPub)
-      else:
-        determineStatus(head, head.isPub)
+    result = decideStatus(
+      if head.isPub: head[1] else: head,
+      head.isPub
+    )
   of 3:
     if head.isInheritance:
       return newClassStatus(
@@ -201,39 +182,76 @@ proc parseHead*(head: NimNode): ClassStatus {.compileTime.} =
     error "Too many arguments. #3", head
 
 
-func delValue*(node): NimNode {.discardable, compileTime.} =
+func astOfAsgnWith(v: NimNode): NimNode {.discardable, compileTime.} =
+  getAst asgnWith(v)
+
+
+func newSelfStmt(typeName): NimNode {.compileTime.} =
+  newVarStmt ident"self", newCall(typeName)
+
+
+func newResultAsgn: NimNode {.compileTime.} =
+  newAssignment ident"result", ident"self"
+
+
+func insertBody(
+    constructor,
+    typeName;
+    vars: seq[NimNode]
+): NimNode {.discardable, compileTime.} =
+  result = constructor
+  if result.body[0].kind == nnkDiscardStmt:
+    return
+  result.body.insert 0, newSelfStmt(typeName)
+  for v in vars:
+    result.body.insertIn1st(astOfAsgnWith v)
+  result.body.add newResultAsgn()
+
+
+func rmAsterisk(node): NimNode {.discardable, compileTime.} =
   result = node
-  if node.last.kind != nnkEmpty:
-    result[^1] = newEmptyNode()
+  if node.hasAsterisk:
+    result = node[1]
 
 
-func decomposeNameOfVariables*(s: seq[NimNode]): seq[NimNode] {.compileTime.} =
+func rmAsteriskFromEachDef*(s: seq[NimNode]): seq[NimNode] {.compileTime.} =
   for def in s:
-    for v in def[0..(def.len - 3)]:
+    for v in def[0..^3]:
+      result.add newIdentDefs(
+        v.rmAsterisk(),
+        def[^2],
+        def[^1]
+      )
+
+
+func decomposeVariables(s: seq[NimNode]): seq[NimNode] {.compileTime.} =
+  for def in s:
+    for v in def[0..^3]:
       result.add v
 
 
 proc genNewBody*(typeName: NimNode; vars: seq[NimNode]): NimNode {.compileTime.} =
   result = newStmtList newSelfStmt(typeName)
-  for v in vars:
-    result.insertIn1st(astOfAsgnWith v)
+  for v in vars.decomposeVariables():
+    result.insertIn1st astOfAsgnWith(v)
   result.add newResultAsgn()
 
 
-proc replaceSuper*(node): NimNode =
-  result = node
-  if node.kind == nnkCall and
-    node[0].kind == nnkDotExpr and
-    node[0][0].eqIdent"super":
-    result = newTree(
-      nnkCommand,
-      ident "procCall",
-      copyNimTree(node)
-    )
-    echo result.treeRepr
-    return
-  for i, n in node:
-    result[i] = replaceSuper(n)
+proc insertArgs(
+    constructor;
+    vars: seq[NimNode]
+): NimNode {.discardable, compileTime.} =
+  result = constructor
+  for v in vars[0..^1]:
+    result.params.insertIn1st(v)
+
+
+func replaceReturnTypeWith(
+    constructor,
+    typeName
+): NimNode {.discardable, compileTime.} =
+  result = constructor
+  result.params[0] = typeName
 
 
 proc insertStmts*(
@@ -248,11 +266,12 @@ proc insertStmts*(
     .replaceReturnTypeWith(typeName)
     .insertBody(
       typeName,
-      decomposeNameOfVariables args
+      args.decomposeVariables()
     )
 
 
 func markWithAsterisk*(theProc): NimNode {.discardable, compileTime.} =
+  # Because it's used in template, must be exported.
   result = theProc
   result.name = newPostfix(theProc.name)
 

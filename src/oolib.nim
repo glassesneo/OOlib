@@ -7,20 +7,20 @@ macro class*(head, body: untyped): untyped =
     status = parseHead(head)
   var
     recList = newNimNode(nnkRecList)
-    argsList, hasDefaultArgsList: seq[NimNode]
+    argsList, argsListWithDefault: seq[NimNode]
     hasConstructor = false
     constructorNode: NimNode
   result = defClass(status)
-  for node in body.children:
+  for node in body:
     case node.kind
     of nnkVarSection:
-      for n in node.children:
+      for n in node:
         if n[^2].isEmpty:
           error "Please write the variable type. `class` macro does not have type inference. #5", n
         argsList.add n
         if not n.last.isEmpty:
-          hasDefaultArgsList.add n
-        recList.add delValue(n)
+          argsListWithDefault.add n
+        recList.add n.delDefaultValue()
     of nnkProcDef:
       if node.isConstructor:
         if hasConstructor: error "Constructor already exists. #6", node
@@ -40,21 +40,22 @@ macro class*(head, body: untyped): untyped =
       return
     else:
       error "Unsupported syntax #1", body
-  for n in hasDefaultArgsList: echo n.treeRepr
   if hasConstructor:
     result.insertIn1st(
       constructorNode.insertStmts(
         status.name,
-        hasDefaultArgsList
+        argsListWithDefault.rmAsteriskFromEachDef()
       )
     )
   else:
-    let theNew = genTheNew(status.isPub):
-      name = ident "new"&status.name.strVal
-      params = status.name&argsList
-      body = genNewBody(
-        status.name,
-        decomposeNameOfVariables argsList
-      )
-    result.insert(1, theNew)
+    let
+      argsListWithAsterisksRemoved = argsList.rmAsteriskFromEachDef()
+      theNew = genTheNew(status.isPub):
+        name = ident "new"&status.name.strVal
+        params = status.name&argsListWithAsterisksRemoved
+        body = genNewBody(
+          status.name,
+          argsListWithAsterisksRemoved
+        )
+    result.insertIn1st theNew
   result[0][0][2][0][2] = recList
