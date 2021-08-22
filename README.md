@@ -1,55 +1,61 @@
-# 👑classes
-**classes is currently work in progress**🔥
+# 👑OOlib
+![license](https://img.shields.io/github/license/Glasses-Neo/oolib?style=for-the-badge)
+![code size](https://img.shields.io/github/languages/code-size/Glasses-Neo/oolib?style=for-the-badge)<br/>
+[![nimble](https://raw.githubusercontent.com/yglukhov/nimble-tag/master/nimble_js.png)](https://github.com/yglukhov/nimble-tag)<br/>
+
+![icon](./oolib.png)
+
+**OOlib is currently work in progress**🔥
 
 
 ## 🗺Overview
-classes is a syntax sugar which provides user-defined types, procedures, etc...
+OOlib is a syntax sugar which provides user-defined types, procedures, etc...
 
 
 ## 📜Usage
 ```nim
 import strformat
-import classes
+import oolib
 
 
 # add `pub` prefix to publish class
 class pub Person:
   var
     name*: string
-    age: int
-    height, weight: float
+    age*: int = 0
 
-  # automatically insert `self` as first argument
-  proc happyBirthday =
+  # auto insert `self` as first argument
+  proc `$`*: string = fmt"<Person> name: {self.name}"
+
+  proc happyBirthday* =
     inc self.age
 
-  method greeting {.base.} =
-    echo fmt"Hello, I'm {self.name}."
 
-  # support for `template`
-  template p =
-    # do something
-
-
-class BusinessPerson of Person:
-  var workspace: string
-
-  method greeting =
-    echo fmt"Hello, I'm {self.name} from {self.workspace} Inc."
+# auto define constructor
+let p = newPerson("Tony")
 ```
 
 
 ## ✨Features
-- Can parse some modifiers. (e.g. `pub`, `of`, `distinct`)
-- Support for `proc`, `method`, `func`, `iterator`, `template`.
-- Can inherit an object.
-- Automatically insert `self` as first argument.
+- Member variables with default values
+- Definition of `proc`, `method`, `func`, etc... (the only exception being `macro`)
+- Auto inserting `self` as first argument
+- Auto definition of constructor (high performance!)
+- Assistance with constructor definition
+- `pub` modifier instead of `*`
+- Inheritance with `of` modifier (for now, only object can be inherited)
+- Creating distinct type with `distinct` modifier
+- `{.final.}` by default
+- `{.open.}` to allow inheritance
+- `super` keyword for `method`
 
 ### 💭Planned
-- Support for more modifiers. (e.g. `[T]`, `{.pragma.}`, `ref`)
-- Define `let` variables.
-- Provide `super` keyword for `method`.
-- Define constructor easily.
+- Support for more modifiers (e.g. `[T]`, `{.pragma.}`)
+- `let` member variables
+
+
+## 🥷Author
+[![Twitter](https://img.shields.io/twitter/follow/Glassesman10.svg?style=social&label=@Glassesman10)](https://twitter.com/Glassesman10)
 
 
 ## License
