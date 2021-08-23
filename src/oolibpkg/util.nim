@@ -18,6 +18,10 @@ type
     kind: ClassKind
     name, base: NimNode
 
+  ConstructorStatus* = tuple
+    hasConstructor: bool
+    node: NimNode
+
 
 func newClassStatus(
     isPub,
@@ -69,6 +73,13 @@ func isConstructor*(node): bool {.compileTime.} =
 
 func isEmpty*(node): bool {.compileTime.} =
   node.kind == nnkEmpty
+
+
+proc updateStatus*(cStatus: var ConstructorStatus; node) {.compileTime.} =
+  if node.isConstructor:
+    if cStatus.hasConstructor: error "Constructor already exists. #6", node
+    cStatus.hasConstructor = true
+    cStatus.node = node
 
 
 func insertIn1st*(node; inserted: NimNode) {.compileTime.} =
@@ -255,12 +266,17 @@ func replaceReturnTypeWith(
 
 
 proc insertStmts*(
-    constructor,
+    node;
+    isPub: bool;
     typeName;
     args: seq[NimNode]
 ): NimNode {.discardable, compileTime.} =
-  result = constructor
-  result.name = ident "new"&typeName.strVal
+  result = node
+  result.name =
+    if isPub:
+      newPostfix (ident "new"&typeName.strVal)
+    else:
+      ident "new"&typeName.strVal
   result
     .insertArgs(args)
     .replaceReturnTypeWith(typeName)

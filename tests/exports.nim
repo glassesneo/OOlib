@@ -7,5 +7,9 @@ class pub A:
   var a*: int
 
 
-class B {.open.}:
+class pub B:
   var b, c*: string
+
+  proc `new`(str: string) =
+    self.b = str
+    self.c = str
