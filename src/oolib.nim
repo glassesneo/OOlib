@@ -8,8 +8,7 @@ macro class*(head, body: untyped): untyped =
   var
     recList = newNimNode(nnkRecList)
     argsList, argsListWithDefault: seq[NimNode]
-    hasConstructor = false
-    constructorNode: NimNode
+    cStatus: ConstructorStatus
   result = defClass(status)
   for node in body:
     case node.kind
@@ -22,11 +21,8 @@ macro class*(head, body: untyped): untyped =
           argsListWithDefault.add n
         recList.add n.delDefaultValue()
     of nnkProcDef:
-      if node.isConstructor:
-        if hasConstructor: error "Constructor already exists. #6", node
-        hasConstructor = true
-        constructorNode = node
-      else:
+      cStatus.updateStatus(node)
+      if not node.isConstructor:
         result.add node.insertSelf(status.name)
     of nnkMethodDef:
       if status.kind == Inheritance:
@@ -40,9 +36,10 @@ macro class*(head, body: untyped): untyped =
       return
     else:
       error "Unsupported syntax #1", body
-  if hasConstructor:
+  if cStatus.hasConstructor:
     result.insertIn1st(
-      constructorNode.insertStmts(
+      cStatus.node.insertStmts(
+        status.isPub,
         status.name,
         argsListWithDefault.rmAsteriskFromEachDef()
       )
