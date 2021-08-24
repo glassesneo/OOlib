@@ -1,3 +1,4 @@
-nimchache
+nimcache
+testresults
 tests/*
 !*.nim
