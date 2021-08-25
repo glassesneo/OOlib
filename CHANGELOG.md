@@ -6,8 +6,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
-## v0.1.0 - 2021-8-1
-- 🎉 first release!
+## [v0.2.1] - 2021-8-23 [YANKED]
+### Fixed
+- a bug in constructor #45
 
 ## [v0.2.0] - 2021-8-22
 ### Added
@@ -19,10 +20,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 - a bug when variables are marked with `*` #37
-
-## [v0.2.1] - 2021-8-23 [YANKED]
-### Fixed
-- a bug in constructor #45
+## v0.1.0 - 2021-8-1
+- 🎉 first release!
 
 [Unreleased]: https://github.com/Glasses-Neo/OOlib/compare/b33007b4598a58e587eb71d9e991e1af56affa24...HEAD
 [v0.2.1]: https://github.com/Glasses-Neo/OOlib/compare/743a473841f7efdb41652678fe8a224cdbb7b5b4...b33007b4598a58e587eb71d9e991e1af56affa24
