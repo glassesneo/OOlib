@@ -1,5 +1,9 @@
-template defObj*(className, baseName) =
-  type className {.final.} = ref object of baseName
+template defObj*(className) =
+  type className = ref object
+
+
+template defObjWithBase*(className, baseName) =
+  type className = ref object of baseName
 
 
 template defDistinct*(className, baseName) =
