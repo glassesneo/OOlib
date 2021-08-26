@@ -37,7 +37,7 @@ class pub B of A:
   proc `$`*: string = "B"
 
   method echoN* =
-    procCall A(self).echoN()
+    super.echoN()
 
 
 let a = newA(5)
@@ -47,6 +47,6 @@ a.echoN()
 a.loopNTimes:
   echo a.returnN
 
-let b = newB(5)
+let b = newB(0)
 echo $b
 b.echoN()
