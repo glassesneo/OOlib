@@ -20,7 +20,7 @@ class B of A:
 
 
 let a = newA()
-let b = newB()
+let b = new B
 
 a.sampleMethod()
 b.sampleMethod()
