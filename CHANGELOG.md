@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Changed
 - disabled auto definition of subclass constructor
-- - constructors are now not defined automatically in subclasses
+  - constructors are now not defined automatically in subclasses
 - subclasses are now warning when `{.open.}` is used together
 
 ## [v0.2.1] - 2021-8-23 [YANKED]
