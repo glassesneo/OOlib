@@ -44,6 +44,8 @@ macro class*(head, body: untyped): untyped =
         argsListWithDefault.rmAsteriskFromEachDef()
       )
     )
+  elif status.kind == Inheritance:
+    discard
   else:
     let
       argsListWithAsterisksRemoved = argsList.rmAsteriskFromEachDef()

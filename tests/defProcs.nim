@@ -32,6 +32,8 @@ class pub A {.open.}:
       body
 
 class pub B of A:
+  proc `new`(n: int) =
+    self.n = n
   proc `$`*: string = "B"
 
   method echoN* =
@@ -45,6 +47,6 @@ a.echoN()
 a.loopNTimes:
   echo a.returnN
 
-let b = newB()
+let b = newB(5)
 echo $b
 b.echoN()
