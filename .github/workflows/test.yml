@@ -6,21 +6,21 @@ on:
       - main
       - develop
     paths-ignore:
-      - 'README.*'
-      - 'COPYING'
-      - '*.png'
+      - "README.*"
+      - "COPYING"
+      - "*.png"
   pull_request:
     paths-ignore:
-      - 'README.*'
-      - 'COPYING'
-      - '*.png'
+      - "README.*"
+      - "COPYING"
+      - "*.png"
 
 jobs:
   test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        nim-version: ['1.4.8', 'stable']
+        nim-version: ["1.4.8", "stable"]
     steps:
       - uses: actions/checkout@v2
       - uses: jiro4989/setup-nim-action@v1

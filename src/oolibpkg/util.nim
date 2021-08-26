@@ -3,10 +3,6 @@ import macros
 import tmpl
 
 
-using
-  node, constructor, theProc, typeName, baseName: NimNode
-
-
 type
   ClassKind* = enum
     Normal
@@ -23,12 +19,17 @@ type
     node: NimNode
 
 
+using
+  node, constructor, theProc, typeName, baseName: NimNode
+  status: ClassStatus
+
+
 func newClassStatus(
     isPub,
     isOpen = false;
     kind = Normal;
     name = ident "";
-    base = ident "RootObj"
+    base: NimNode = nil
 ): ClassStatus =
   (
     isPub: isPub,
@@ -183,6 +184,13 @@ proc parseHead*(head: NimNode): ClassStatus {.compileTime.} =
     )
   of 3:
     if head.isInheritance:
+      if head[2].isOpen:
+        warning "{.open.} is ignored in a definition of subclass", head
+        return newClassStatus(
+          kind = Inheritance,
+          name = head[1],
+          base = head[2][0]
+        )
       return newClassStatus(
         kind = Inheritance,
         name = head[1],
@@ -292,17 +300,37 @@ func markWithAsterisk*(theProc): NimNode {.discardable, compileTime.} =
   result.name = newPostfix(theProc.name)
 
 
-func getAstOfClassDef(status: ClassStatus): NimNode =
-  result =
-    case status.kind
-    of Normal, Inheritance:
-      getAst defObj(status.name, status.base)
-    of Distinct:
-      getAst defDistinct(status.name, status.base)
+func defObj(status): NimNode {.compileTime.} =
+  result = getAst defObj(status.name)
+  if status.isPub:
+    result[0][0] = newPostfix(result[0][0])
+  if status.isOpen:
+    result[0][2][0][1] = newNimNode(nnkOfInherit).add ident "RootObj"
+
+
+func defObjWithBase(status): NimNode {.compileTime.} =
+  result = getAst defObjWithBase(status.name, status.base)
+  if status.isPub:
+    result[0][0] = newPostfix(result[0][0])
+
+
+func defDistinct(status): NimNode {.compileTime.} =
+  result = getAst defDistinct(status.name, status.base)
   if status.isPub:
     result[0][0][0] = newPostfix(result[0][0][0])
   if status.isOpen:
-    result[0][0] = result[0][0][0]
+    result[0][0][1][0] = ident "inheritable"
+
+
+func getAstOfClassDef(status: ClassStatus): NimNode {.compileTime.} =
+  result =
+    case status.kind
+    of Normal:
+      status.defObj()
+    of Inheritance:
+      status.defObjWithBase()
+    of Distinct:
+      status.defDistinct()
 
 
 func defClass*(status: ClassStatus): NimNode {.compileTime.} =
