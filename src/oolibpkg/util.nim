@@ -184,6 +184,13 @@ proc parseHead*(head: NimNode): ClassStatus {.compileTime.} =
     )
   of 3:
     if head.isInheritance:
+      if head[2].isOpen:
+        warning "{.open.} is ignored in a definition of subclass", head
+        return newClassStatus(
+          kind = Inheritance,
+          name = head[1],
+          base = head[2][0]
+        )
       return newClassStatus(
         kind = Inheritance,
         name = head[1],
