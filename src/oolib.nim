@@ -1,4 +1,4 @@
-import macros
+import macros, sequtils
 import oolibpkg / [util]
 
 
@@ -6,8 +6,7 @@ macro class*(head, body: untyped): untyped =
   let
     status = parseHead(head)
   var
-    recList = newNimNode(nnkRecList)
-    argsList, argsListWithDefault: seq[NimNode]
+    argsList: seq[NimNode]
     cStatus: ConstructorStatus
   result = defClass(status)
   for node in body:
@@ -17,9 +16,6 @@ macro class*(head, body: untyped): untyped =
         if n[^2].isEmpty:
           error "Please write the variable type. `class` macro does not have type inference. #5", n
         argsList.add n
-        if not n.last.isEmpty:
-          argsListWithDefault.add n
-        recList.add n.delDefaultValue()
     of nnkProcDef:
       cStatus.updateStatus(node)
       if not node.isConstructor:
@@ -41,20 +37,10 @@ macro class*(head, body: untyped): untyped =
       cStatus.node.insertStmts(
         status.isPub,
         status.name,
-        argsListWithDefault.rmAsteriskFromEachDef()
-      )
+        argsList.filterIt(not it.last.isEmpty).map rmAsteriskFromIdent
     )
-  elif status.kind == Inheritance:
-    discard
+    )
+  elif status.kind == Inheritance: discard
   else:
-    let
-      argsListWithAsterisksRemoved = argsList.rmAsteriskFromEachDef()
-      theNew = genTheNew(status.isPub):
-        name = ident "new"&status.name.strVal
-        params = status.name&argsListWithAsterisksRemoved
-        body = genNewBody(
-          status.name,
-          argsListWithAsterisksRemoved
-        )
-    result.insertIn1st theNew
-  result[0][0][2][0][2] = recList
+    result.insertIn1st(status.defNew argsList.map rmAsteriskFromIdent)
+  result[0][0][2][0][2] = argsList.map(delDefaultValue).toRecList()

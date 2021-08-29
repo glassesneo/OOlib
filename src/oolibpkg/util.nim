@@ -22,6 +22,7 @@ type
 using
   node, constructor, theProc, typeName, baseName: NimNode
   status: ClassStatus
+  isPub: bool
 
 
 func newClassStatus(
@@ -123,7 +124,7 @@ func newPostfix(node): NimNode {.compileTime.} =
   newNimNode(nnkPostfix).add ident"*", node
 
 
-proc decideStatus(node; isPub: bool): ClassStatus {.compileTime.} =
+proc decideStatus(node; isPub): ClassStatus {.compileTime.} =
   case node.kind
   of nnkIdent:
     result = newClassStatus(
@@ -227,20 +228,23 @@ func insertBody(
   result.body.add newResultAsgn()
 
 
+func toRecList*(s: seq[NimNode]): NimNode {.compileTime.} =
+  result = nnkRecList.newNimNode
+  for def in s:
+    result.add def
+
+
 func rmAsterisk(node): NimNode {.discardable, compileTime.} =
   result = node
   if node.hasAsterisk:
     result = node[1]
 
 
-func rmAsteriskFromEachDef*(s: seq[NimNode]): seq[NimNode] {.compileTime.} =
-  for def in s:
-    for v in def[0..^3]:
-      result.add newIdentDefs(
-        v.rmAsterisk(),
-        def[^2],
-        def[^1]
-      )
+proc rmAsteriskFromIdent*(def: NimNode): NimNode {.compileTime.} =
+  result = nnkIdentDefs.newNimNode()
+  for v in def[0..^3]:
+    result.add v.rmAsterisk
+  result.add(def[^2]).add(def[^1])
 
 
 func decomposeVariables(s: seq[NimNode]): seq[NimNode] {.compileTime.} =
@@ -249,7 +253,7 @@ func decomposeVariables(s: seq[NimNode]): seq[NimNode] {.compileTime.} =
       result.add v
 
 
-proc genNewBody*(typeName: NimNode; vars: seq[NimNode]): NimNode {.compileTime.} =
+proc genNewBody(typeName; vars: seq[NimNode]): NimNode {.compileTime.} =
   result = newStmtList newSelfStmt(typeName)
   for v in vars.decomposeVariables():
     result.insertIn1st astOfAsgnWith(v)
@@ -275,7 +279,7 @@ func replaceReturnTypeWith(
 
 proc insertStmts*(
     node;
-    isPub: bool;
+    isPub;
     typeName;
     args: seq[NimNode]
 ): NimNode {.discardable, compileTime.} =
@@ -337,14 +341,15 @@ func defClass*(status: ClassStatus): NimNode {.compileTime.} =
   newStmtList getAstOfClassDef(status)
 
 
-template genTheNew*(isPub: bool; b: untyped): NimNode =
-  block:
-    var
-      name {.inject.}: NimNode
-      params {.inject.}: seq[NimNode]
-      body {.inject.}: NimNode
-    b
-    if isPub:
-      newProc(name, params, body).markWithAsterisk()
-    else:
-      newProc(name, params, body)
+template defNew*(status; args: seq[NimNode]): NimNode =
+  var
+    name = ident "new"&status.name.strVal
+    params = status.name&args
+    body = genNewBody(
+      status.name,
+      args
+    )
+  if status.isPub:
+    newProc(name, params, body).markWithAsterisk()
+  else:
+    newProc(name, params, body)
