@@ -16,17 +16,15 @@ macro class*(head, body: untyped): untyped =
         if n[^2].isEmpty:
           error "Please write the variable type. `class` macro does not have type inference. #5", n
         argsList.add n
-    of nnkProcDef:
-      cStatus.updateStatus(node)
-      if not node.isConstructor:
-        result.add node.insertSelf(status.name)
-    of nnkMethodDef:
-      if status.kind == Inheritance:
+    of nnkProcDef, nnkMethodDef, nnkFuncDef,
+      nnkIteratorDef, nnkConverterDef, nnkTemplateDef:
+      if node.kind == nnkProcDef:
+        cStatus.updateStatus(node)
+        if node.isConstructor: continue
+      elif node.kind == nnkMethodDef and status.kind == Inheritance:
         node.body = replaceSuper(node.body)
         result.add node.insertSelf(status.name).insertSuperStmt(status.base)
-      else:
-        result.add node.insertSelf(status.name)
-    of nnkFuncDef, nnkIteratorDef, nnkConverterDef, nnkTemplateDef:
+        continue
       result.add node.insertSelf(status.name)
     of nnkDiscardStmt:
       return
@@ -42,5 +40,5 @@ macro class*(head, body: untyped): untyped =
     )
   elif status.kind == Inheritance: discard
   else:
-    result.insertIn1st(status.defNew argsList.map rmAsteriskFromIdent)
+    result.insertIn1st status.defNew(argsList.map rmAsteriskFromIdent)
   result[0][0][2][0][2] = argsList.map(delDefaultValue).toRecList()
