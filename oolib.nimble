@@ -13,3 +13,7 @@ requires "nim >= 1.4.8"
 
 task tests, "Run all tests":
   exec "testament p 'tests/**.nim'"
+
+task show, "Show testresults":
+  exec "testament html"
+  exec "open testresults.html"
