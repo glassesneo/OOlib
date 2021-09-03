@@ -5,6 +5,9 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
+### Added
+- type inference for default args [#55](https://github.com/Glasses-Neo/OOlib/pull/55)
+- class data constants [#56](https://github.com/Glasses-Neo/OOlib/issues/56)
 
 ## [v0.2.2] - 2021-8-26 [YANKED]
 ### Fixed
