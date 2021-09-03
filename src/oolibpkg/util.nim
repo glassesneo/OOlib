@@ -354,7 +354,6 @@ func getAstOfClassDef(status: ClassStatus): NimNode {.compileTime.} =
 func defClass*(status: ClassStatus): NimNode {.compileTime.} =
   newStmtList getAstOfClassDef(status)
 
-
 template defNew*(status; args: seq[NimNode]): NimNode =
   var
     name = ident "new"&status.name.strVal
@@ -367,3 +366,79 @@ template defNew*(status; args: seq[NimNode]): NimNode =
     newProc(name, params, body).markWithAsterisk()
   else:
     newProc(name, params, body)
+
+
+macro optBase*(p: untyped): untyped =
+  # determines whether to include {.base.} or not for use in auto generated methods
+  let
+    unbased = p.copyNimTree
+    compileStmt = p.copyNimTree
+  compileStmt[4] = nnkPragma.newTree(ident"base")
+
+  result = p
+  result[4] = nnkPragma.newTree(ident"base")
+  result = quote do:
+    {.warningAsError[UseBase]:on.}
+    when compiles(`compileStmt`):
+      `result`
+    else:
+      `unbased`
+
+    {.warningAsError[UseBase]:off.}
+
+
+proc genConstant*(className: string, node: NimNode): NimNode {.compileTime.} =
+  # generate both a template for use with typedesc and a method for dynamic dispatch
+  #
+  # dumpAstGen:
+  #   template speed*(self: typedesc[A]): untyped = 10.0f
+  #   method speed*(self: A): typeof(10.0f) {.optBase.} = 10.0f
+
+  nnkStmtList.newTree(
+    # template
+    nnkTemplateDef.newTree(
+      node[0],
+      newEmptyNode(),
+      newEmptyNode(),
+      nnkFormalParams.newTree(
+        newIdentNode("untyped"),
+        nnkIdentDefs.newTree(
+          newIdentNode("self"),
+          nnkBracketExpr.newTree(
+            newIdentNode("typedesc"),
+            newIdentNode(className)
+          ),
+          newEmptyNode()
+        )
+      ),
+      newEmptyNode(),
+      newEmptyNode(),
+      nnkStmtList.newTree(
+        node[^1]
+      )
+    ),
+    # method
+    nnkMethodDef.newTree(
+      node[0],
+      newEmptyNode(),
+      newEmptyNode(),
+      nnkFormalParams.newTree(
+        node[1],
+        nnkIdentDefs.newTree(
+          newIdentNode("self"),
+          newIdentNode(className),
+          newEmptyNode(),
+        )
+      ),
+      nnkPragma.newTree(
+        newIdentNode("optBase")
+      ),
+      newEmptyNode(),
+      nnkStmtList.newTree(
+        nnkReturnStmt.newTree(
+          node[^1]
+        )
+      )
+    ),
+
+  )
