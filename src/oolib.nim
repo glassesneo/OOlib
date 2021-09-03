@@ -15,7 +15,8 @@ macro class*(head, body: untyped): untyped =
     of nnkVarSection:
       for n in node:
         if n[^2].isEmpty:
-          error "Please write the variable type. `class` macro does not have type inference. #5", n
+          # infer type from default
+          n[^2] = newCall(ident"typeof", n[^1])
         argsList.add n
         if not n.last.isEmpty:
           argsListWithDefault.add n
