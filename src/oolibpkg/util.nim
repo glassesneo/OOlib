@@ -378,16 +378,16 @@ macro optBase*(p: untyped): untyped =
   result = p
   result[4] = nnkPragma.newTree(ident"base")
   result = quote do:
-    {.warningAsError[UseBase]:on.}
+    {.warningAsError[UseBase]: on.}
     when compiles(`compileStmt`):
       `result`
     else:
       `unbased`
 
-    {.warningAsError[UseBase]:off.}
+    {.warningAsError[UseBase]: off.}
 
 
-proc genConstant*(className: string, node: NimNode): NimNode {.compileTime.} =
+proc genConstant*(className: string; node: NimNode): NimNode {.compileTime.} =
   # generate both a template for use with typedesc and a method for dynamic dispatch
   #
   # dumpAstGen:
@@ -407,9 +407,9 @@ proc genConstant*(className: string, node: NimNode): NimNode {.compileTime.} =
           nnkBracketExpr.newTree(
             newIdentNode("typedesc"),
             newIdentNode(className)
-          ),
-          newEmptyNode()
-        )
+      ),
+      newEmptyNode()
+    )
       ),
       newEmptyNode(),
       newEmptyNode(),
@@ -428,8 +428,8 @@ proc genConstant*(className: string, node: NimNode): NimNode {.compileTime.} =
           newIdentNode("self"),
           newIdentNode(className),
           newEmptyNode(),
-        )
-      ),
+      )
+    ),
       nnkPragma.newTree(
         newIdentNode("optBase")
       ),
