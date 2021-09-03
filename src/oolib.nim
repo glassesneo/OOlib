@@ -31,12 +31,9 @@ macro class*(head, body: untyped): untyped =
     else:
       error "Unsupported syntax #1", body
   if cStatus.hasConstructor:
-    result.insertIn1st(
-      cStatus.node.insertStmts(
-        status.isPub,
-        status.name,
-        argsList.filterIt(not it.last.isEmpty).map rmAsteriskFromIdent
-    )
+    result.insertIn1st cStatus.node.assistWithDef(
+      status,
+      argsList.filterIt(not it.last.isEmpty).map rmAsteriskFromIdent
     )
   elif status.kind == Inheritance: discard
   else:

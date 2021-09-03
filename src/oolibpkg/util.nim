@@ -58,6 +58,7 @@ func isInheritance(node): bool {.compileTime.} =
 
 
 func isSuperFunc(node): bool {.compileTime.} =
+  ## Whether struct is `super.f()` or not.
   node.kind == nnkCall and
   node[0].kind == nnkDotExpr and
   node[0][0].eqIdent"super"
@@ -88,12 +89,14 @@ func insertIn1st*(node; inserted: NimNode) {.compileTime.} =
   node.insert 1, inserted
 
 
-func insertSelf*(node; typeName): NimNode {.discardable, compileTime.} =
+func insertSelf*(node; typeName): NimNode {.compileTime.} =
+  ## Insert `self: typeName` in the 1st of node.params.
   result = node
   result.params.insertIn1st newIdentDefs(ident "self", typeName)
 
 
 proc replaceSuper*(node): NimNode =
+  ## Replace `super.f()` with `procCall Base(self).f()`.
   result = node
   if node.isSuperFunc:
     result = newTree(
@@ -107,15 +110,17 @@ proc replaceSuper*(node): NimNode =
 
 
 func newSuperStmt(baseName): NimNode {.compileTime.} =
+  ## Generate `var super = Base(self)`.
   newVarStmt ident"super", newCall(baseName, ident "self")
 
 
-func insertSuperStmt*(theProc; baseName): NimNode {.discardable, compileTime.} =
+func insertSuperStmt*(theProc; baseName): NimNode {.compileTime.} =
+  ## Insert `var super = Base(self)` in the 1st line of `theProc.body`.
   result = theProc
   result.body.insert 0, newSuperStmt(baseName)
 
 
-func delDefaultValue*(node): NimNode {.discardable, compileTime.} =
+func delDefaultValue*(node): NimNode {.compileTime.} =
   result = node
   result[^1] = newEmptyNode()
 
@@ -202,11 +207,12 @@ proc parseHead*(head: NimNode): ClassStatus {.compileTime.} =
     error "Too many arguments. #3", head
 
 
-func astOfAsgnWith(v: NimNode): NimNode {.discardable, compileTime.} =
+func astOfAsgnWith(v: NimNode): NimNode {.compileTime.} =
   getAst asgnWith(v)
 
 
 func newSelfStmt(typeName): NimNode {.compileTime.} =
+  ## Generate `var self = typeName()`.
   newVarStmt ident"self", newCall(typeName)
 
 
@@ -214,27 +220,13 @@ func newResultAsgn: NimNode {.compileTime.} =
   newAssignment ident"result", ident"self"
 
 
-func insertBody(
-    constructor,
-    typeName;
-    vars: seq[NimNode]
-): NimNode {.discardable, compileTime.} =
-  result = constructor
-  if result.body[0].kind == nnkDiscardStmt:
-    return
-  result.body.insert 0, newSelfStmt(typeName)
-  for v in vars:
-    result.body.insertIn1st(astOfAsgnWith v)
-  result.body.add newResultAsgn()
-
-
 func toRecList*(s: seq[NimNode]): NimNode {.compileTime.} =
-  result = nnkRecList.newNimNode
+  result = nnkRecList.newNimNode()
   for def in s:
     result.add def
 
 
-func rmAsterisk(node): NimNode {.discardable, compileTime.} =
+func rmAsterisk(node): NimNode {.compileTime.} =
   result = node
   if node.hasAsterisk:
     result = node[1]
@@ -247,7 +239,7 @@ proc rmAsteriskFromIdent*(def: NimNode): NimNode {.compileTime.} =
   result.add(def[^2]).add(def[^1])
 
 
-func decomposeVariables(s: seq[NimNode]): seq[NimNode] {.compileTime.} =
+func decomposeDefsIntoVars*(s: seq[NimNode]): seq[NimNode] {.compileTime.} =
   for def in s:
     for v in def[0..^3]:
       result.add v
@@ -255,51 +247,73 @@ func decomposeVariables(s: seq[NimNode]): seq[NimNode] {.compileTime.} =
 
 proc genNewBody(typeName; vars: seq[NimNode]): NimNode {.compileTime.} =
   result = newStmtList newSelfStmt(typeName)
-  for v in vars.decomposeVariables():
+  for v in vars:
     result.insertIn1st astOfAsgnWith(v)
   result.add newResultAsgn()
-
-
-proc insertArgs(
-    constructor;
-    vars: seq[NimNode]
-): NimNode {.discardable, compileTime.} =
-  result = constructor
-  for v in vars[0..^1]:
-    result.params.insertIn1st(v)
 
 
 func replaceReturnTypeWith(
     constructor,
     typeName
-): NimNode {.discardable, compileTime.} =
+): NimNode {.compileTime.} =
   result = constructor
   result.params[0] = typeName
 
 
-proc insertStmts*(
-    node;
-    isPub;
-    typeName;
+proc insertArgs(
+    constructor;
+    vars: seq[NimNode]
+): NimNode {.compileTime.} =
+  ## Insert `vars` to constructor args.
+  result = constructor
+  for v in vars[0..^1]:
+    result.params.insertIn1st(v)
+
+
+proc addSignatures(
+    constructor;
+    status;
     args: seq[NimNode]
-): NimNode {.discardable, compileTime.} =
-  result = node
+): NimNode {.compileTime.} =
+  ## Add signatures to `constructor`.
+  result = constructor
   result.name =
-    if isPub:
-      newPostfix (ident "new"&typeName.strVal)
+    if status.isPub:
+      newPostfix (ident "new"&status.name.strVal)
     else:
-      ident "new"&typeName.strVal
-  result
+      ident "new"&status.name.strVal
+  return result
+    .replaceReturnTypeWith(status.name)
     .insertArgs(args)
-    .replaceReturnTypeWith(typeName)
-    .insertBody(
-      typeName,
-      args.decomposeVariables()
-    )
 
 
-func markWithAsterisk*(theProc): NimNode {.discardable, compileTime.} =
-  # Because it's used in template, must be exported.
+func insertBody(
+    constructor;
+    vars: seq[NimNode]
+): NimNode {.compileTime.} =
+  result = constructor
+  if result.body[0].kind == nnkDiscardStmt:
+    return
+  result.body.insert 0, newSelfStmt(result.params[0])
+  for v in vars.decomposeDefsIntoVars():
+    result.body.insertIn1st(astOfAsgnWith v)
+  result.body.add newResultAsgn()
+
+
+proc assistWithDef*(
+    constructor;
+    status;
+    args: seq[NimNode]
+): NimNode {.compileTime.} =
+  ## Add signatures and insert body to `constructor`.
+  result = constructor
+  return result
+    .addSignatures(status, args)
+    .insertBody(args)
+
+
+func markWithAsterisk*(theProc): NimNode {.compileTime.} =
+  ## Because it's used in template, must be exported.
   result = theProc
   result.name = newPostfix(theProc.name)
 
@@ -347,7 +361,7 @@ template defNew*(status; args: seq[NimNode]): NimNode =
     params = status.name&args
     body = genNewBody(
       status.name,
-      args
+      args.decomposeDefsIntoVars()
     )
   if status.isPub:
     newProc(name, params, body).markWithAsterisk()
