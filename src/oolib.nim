@@ -50,3 +50,17 @@ macro class*(head, body: untyped): untyped =
   for c in constsList:
     result.insertIn1st genConstant(status.name.strVal, c)
   result[0][0][2][0][2] = argsList.map(delDefaultValue).toRecList()
+
+
+template pClass* {.pragma.}
+  ## Be used as pragma.
+
+
+proc isClass*[T](instance: T): bool =
+  ## Whether `instance` is class or not.
+  T.hasCustomPragma(pClass)
+
+
+proc isClass*(T: typedesc): bool =
+  ## Whether `T` is class or not.
+  T.hasCustomPragma(pClass)

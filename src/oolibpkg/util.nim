@@ -318,18 +318,27 @@ func markWithAsterisk*(theProc): NimNode {.compileTime.} =
   result.name = newPostfix(theProc.name)
 
 
+func newPragmaExpr(node; pragma: string): NimNode {.compileTime.} =
+  result = nnkPragmaExpr.newTree(
+    node,
+    nnkPragma.newTree(ident pragma)
+  )
+
+
 func defObj(status): NimNode {.compileTime.} =
   result = getAst defObj(status.name)
   if status.isPub:
     result[0][0] = newPostfix(result[0][0])
   if status.isOpen:
     result[0][2][0][1] = newNimNode(nnkOfInherit).add ident "RootObj"
+  result[0][0] = newPragmaExpr(result[0][0], "pClass")
 
 
 func defObjWithBase(status): NimNode {.compileTime.} =
   result = getAst defObjWithBase(status.name, status.base)
   if status.isPub:
     result[0][0] = newPostfix(result[0][0])
+  result[0][0] = newPragmaExpr(result[0][0], "pClass")
 
 
 func defDistinct(status): NimNode {.compileTime.} =
@@ -337,7 +346,9 @@ func defDistinct(status): NimNode {.compileTime.} =
   if status.isPub:
     result[0][0][0] = newPostfix(result[0][0][0])
   if status.isOpen:
+    # replace {.final.} with {.inheritable.}
     result[0][0][1][0] = ident "inheritable"
+    result[0][0][1].add ident "pClass"
 
 
 func getAstOfClassDef(status: ClassStatus): NimNode {.compileTime.} =
