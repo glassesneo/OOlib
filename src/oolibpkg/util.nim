@@ -80,7 +80,7 @@ func isEmpty*(node): bool {.compileTime.} =
 
 proc updateStatus*(cStatus: var ConstructorStatus; node) {.compileTime.} =
   if node.isConstructor:
-    if cStatus.hasConstructor: error "Constructor already exists. #6", node
+    if cStatus.hasConstructor: error "Constructor already exists", node
     cStatus.hasConstructor = true
     cStatus.node = node
 
@@ -144,7 +144,7 @@ proc decideStatus(node; isPub): ClassStatus {.compileTime.} =
         name = node[0],
         base = node[1][0]
       )
-    error "Missing `distinct` keyword. #4", node
+    error "Missing `distinct` keyword", node
   of nnkInfix:
     if node.isInheritance:
       result = newClassStatus(
@@ -158,7 +158,7 @@ proc decideStatus(node; isPub): ClassStatus {.compileTime.} =
         return
       result.base = node[2]
       return
-    error "Unsupported syntax. #1", node
+    error "Unsupported syntax", node
   of nnkPragmaExpr:
     if node.isOpen:
       result = newClassStatus(
@@ -172,9 +172,9 @@ proc decideStatus(node; isPub): ClassStatus {.compileTime.} =
         result.base = node[0][1][0]
         return
       return
-    error "Unsupported pragma. #2", node
+    error "Unsupported pragma", node
   else:
-    error "Unsupported syntax. #1", node
+    error "Unsupported syntax", node
 
 
 proc parseHead*(head: NimNode): ClassStatus {.compileTime.} =
@@ -182,7 +182,7 @@ proc parseHead*(head: NimNode): ClassStatus {.compileTime.} =
   of 0:
     result = newClassStatus(name = head)
   of 1:
-    error "Unsupported syntax. #1", head
+    error "Unsupported syntax", head
   of 2:
     result = decideStatus(
       if head.isPub: head[1] else: head,
@@ -202,9 +202,9 @@ proc parseHead*(head: NimNode): ClassStatus {.compileTime.} =
         name = head[1],
         base = head[2]
       )
-    error "Unsupported syntax. #1", head
+    error "Unsupported syntax", head
   else:
-    error "Too many arguments. #3", head
+    error "Too many arguments", head
 
 
 func astOfAsgnWith(v: NimNode): NimNode {.compileTime.} =

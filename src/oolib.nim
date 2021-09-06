@@ -38,7 +38,7 @@ macro class*(head, body: untyped): untyped =
     of nnkDiscardStmt:
       return
     else:
-      error "Unsupported syntax #1", body
+      error "Unsupported syntax", body
   if cStatus.hasConstructor:
     result.insertIn1st cStatus.node.assistWithDef(
       status,
