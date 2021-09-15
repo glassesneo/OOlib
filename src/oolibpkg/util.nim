@@ -127,7 +127,7 @@ func delDefaultValue*(node): NimNode {.compileTime.} =
 
 
 func newPostfix(node): NimNode {.compileTime.} =
-  newNimNode(nnkPostfix).add ident"*", node
+  nnkPostfix.newTree ident"*", node
 
 
 proc decideStatus(node; isPub): ClassStatus {.compileTime.} =
@@ -145,14 +145,14 @@ proc decideStatus(node; isPub): ClassStatus {.compileTime.} =
         name = node[0],
         base = node[1][0]
       )
-    elif node.kind == nnkCall:
+    else:
       return newClassStatus(
         isPub = isPub,
         kind = Alias,
         name = node[0],
         base = node[1]
       )
-    error "Missing `distinct` keyword", node
+    error "Unsupported syntax", node
   of nnkInfix:
     if node.isInheritance:
       result = newClassStatus(
@@ -224,8 +224,8 @@ func newSelfStmt(typeName): NimNode {.compileTime.} =
   newVarStmt ident"self", newCall(typeName)
 
 
-func newResultAsgn: NimNode {.compileTime.} =
-  newAssignment ident"result", ident"self"
+func newResultAsgn(rhs: string): NimNode {.compileTime.} =
+  newAssignment ident"result", ident rhs
 
 
 func toRecList*(s: seq[NimNode]): NimNode {.compileTime.} =
@@ -257,7 +257,7 @@ proc genNewBody(typeName; vars: seq[NimNode]): NimNode {.compileTime.} =
   result = newStmtList newSelfStmt(typeName)
   for v in vars:
     result.insertIn1st astOfAsgnWith(v)
-  result.add newResultAsgn()
+  result.add newResultAsgn"self"
 
 
 func replaceReturnTypeWith(
@@ -284,13 +284,12 @@ proc addSignatures(
     args: seq[NimNode]
 ): NimNode {.compileTime.} =
   ## Add signatures to `constructor`.
-  result = constructor
-  result.name =
+  constructor.name =
     if status.isPub:
-      newPostfix (ident "new"&status.name.strVal)
+      newPostfix(ident "new"&status.name.strVal)
     else:
       ident "new"&status.name.strVal
-  return result
+  return constructor
     .replaceReturnTypeWith(status.name)
     .insertArgs(args)
 
@@ -305,7 +304,7 @@ func insertBody(
   result.body.insert 0, newSelfStmt(result.params[0])
   for v in vars.decomposeDefsIntoVars():
     result.body.insertIn1st(astOfAsgnWith v)
-  result.body.add newResultAsgn()
+  result.body.add newResultAsgn"self"
 
 
 proc assistWithDef*(
@@ -314,8 +313,7 @@ proc assistWithDef*(
     args: seq[NimNode]
 ): NimNode {.compileTime.} =
   ## Add signatures and insert body to `constructor`.
-  result = constructor
-  return result
+  return constructor
     .addSignatures(status, args)
     .insertBody(args)
 
@@ -394,25 +392,6 @@ template defNew*(status; args: seq[NimNode]): NimNode =
     newProc(name, params, body).markWithAsterisk()
   else:
     newProc(name, params, body)
-
-
-macro optBase*(p: untyped): untyped =
-  # determines whether to include {.base.} or not for use in auto generated methods
-  let
-    unbased = p.copyNimTree
-    compileStmt = p.copyNimTree
-  compileStmt[4] = nnkPragma.newTree(ident"base")
-
-  result = p
-  result[4] = nnkPragma.newTree(ident"base")
-  result = quote do:
-    {.warningAsError[UseBase]: on.}
-    when compiles(`compileStmt`):
-      `result`
-    else:
-      `unbased`
-
-    {.warningAsError[UseBase]: off.}
 
 
 proc genConstant*(className: string; node: NimNode): NimNode {.compileTime.} =
