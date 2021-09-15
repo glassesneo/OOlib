@@ -90,9 +90,12 @@ func insertIn1st*(node; inserted: NimNode) {.compileTime.} =
   node.insert 1, inserted
 
 
-func insertSelf*(node; typeName): NimNode {.compileTime.} =
-  ## Inserts `self: typeName` in the 1st of node.params.
-  result = node
+func insertSelf*(
+    theProc: NimNode{nkProcDef};
+    typeName
+): NimNode {.compileTime.} =
+  ## Inserts `self: typeName` in the 1st of theProc.params.
+  result = theProc
   result.params.insertIn1st newIdentDefs(ident "self", typeName)
 
 
@@ -115,7 +118,10 @@ func newSuperStmt(baseName): NimNode {.compileTime.} =
   newVarStmt ident"super", newCall(baseName, ident "self")
 
 
-func insertSuperStmt*(theProc; baseName): NimNode {.compileTime.} =
+func insertSuperStmt*(
+    theProc: NimNode{nkProcDef};
+    baseName
+): NimNode {.compileTime.} =
   ## Inserts `var super = Base(self)` in the 1st line of `theProc.body`.
   result = theProc
   result.body.insert 0, newSuperStmt(baseName)
@@ -222,10 +228,6 @@ proc parseHead*(head: NimNode): ClassStatus {.compileTime.} =
     error "Too many arguments", head
 
 
-func astOfAsgnWith(v: NimNode): NimNode {.compileTime.} =
-  getAst asgnWith(v)
-
-
 func newSelfStmt(typeName): NimNode {.compileTime.} =
   ## Generates `var self = typeName()`.
   newVarStmt ident"self", newCall(typeName)
@@ -251,7 +253,7 @@ proc rmAsteriskFromIdent*(def: NimNode): NimNode {.compileTime.} =
   result = nnkIdentDefs.newNimNode()
   for v in def[0..^3]:
     result.add v.rmAsterisk
-  result.add(def[^2]).add(def[^1])
+  result.add(def[^2], def[^1])
 
 
 func decomposeDefsIntoVars*(s: seq[NimNode]): seq[NimNode] {.compileTime.} =
@@ -263,7 +265,7 @@ func decomposeDefsIntoVars*(s: seq[NimNode]): seq[NimNode] {.compileTime.} =
 proc genNewBody(typeName; vars: seq[NimNode]): NimNode {.compileTime.} =
   result = newStmtList newSelfStmt(typeName)
   for v in vars:
-    result.insertIn1st astOfAsgnWith(v)
+    result.insertIn1st getAst(asgnWith v)
   result.add newResultAsgn"self"
 
 
@@ -310,7 +312,7 @@ func insertBody(
     return
   result.body.insert 0, newSelfStmt(result.params[0])
   for v in vars.decomposeDefsIntoVars():
-    result.body.insertIn1st(astOfAsgnWith v)
+    result.body.insertIn1st getAst(asgnWith v)
   result.body.add newResultAsgn"self"
 
 
@@ -326,7 +328,7 @@ proc assistWithDef*(
 
 
 # Because it's used in template, must be exported.
-func markWithAsterisk*(theProc): NimNode {.compileTime.} =
+func markWithAsterisk*(theProc: NimNode{nkProcDef}): NimNode {.compileTime.} =
   result = theProc
   result.name = newPostfix(theProc.name)
 
@@ -368,6 +370,7 @@ func defAlias(status): NimNode {.compileTime.} =
   result = getAst defAlias(status.name, status.base)
   if status.isPub:
     result[0][0] = newPostfix(result[0][0])
+  result[0][0] = newPragmaExpr(result[0][0], "pClass")
 
 
 func getAstOfClassDef(status: ClassStatus): NimNode {.compileTime.} =
