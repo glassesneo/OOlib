@@ -50,12 +50,13 @@ let p = newPerson("Tony")
 - `{.final.}` by default
 - `{.open.}` to allow inheritance
 - `super` keyword for `method`
+- Alias class
 
 ### 💭Planned
 - `Pick` like TypeScript's `Pick`
 - `let` member variables
-- Type alias
 - `struct`
+- `protocol`
 
 
 ## 🥷Author
