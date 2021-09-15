@@ -19,15 +19,17 @@ macro class*(head, body: untyped): untyped =
           # infer type from default
           n[^2] = newCall(ident"typeof", n[^1])
         argsList.add n
-    of nnkProcDef, nnkMethodDef, nnkFuncDef,
-      nnkIteratorDef, nnkConverterDef, nnkTemplateDef:
-      if node.kind == nnkProcDef:
-        cStatus.updateStatus(node)
-        if node.isConstructor: continue
-      elif node.kind == nnkMethodDef and status.kind == Inheritance:
+    of nnkProcDef:
+      cStatus.updateStatus(node)
+      if node.isConstructor: continue
+      result.add node.insertSelf(status.name)
+    of nnkMethodDef:
+      if status.kind == Inheritance:
         node.body = replaceSuper(node.body)
         result.add node.insertSelf(status.name).insertSuperStmt(status.base)
         continue
+      result.add node.insertSelf(status.name)
+    of nnkFuncDef, nnkIteratorDef, nnkConverterDef, nnkTemplateDef:
       result.add node.insertSelf(status.name)
     of nnkConstSection:
       for n in node:
@@ -58,11 +60,11 @@ template pClass* {.pragma.}
   ## Be used as pragma.
 
 
-proc isClass*[T](instance: T): bool =
-  ## Whether `instance` is class or not.
-  T.hasCustomPragma(pClass)
-
-
 proc isClass*(T: typedesc): bool =
   ## Whether `T` is class or not.
   T.hasCustomPragma(pClass)
+
+
+proc isClass*[T](instance: T): bool =
+  ## An alias for `isClass(T)`
+  T.isClass()
