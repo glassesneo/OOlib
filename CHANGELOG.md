@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
   - member variables with default values can now be defined without type declaration
 - class data constants [#56](https://github.com/Glasses-Neo/OOlib/issues/56)
 - `isClass` proc to check type is class or not [#27](https://github.com/Glasses-Neo/OOlib/issues/27)
-- type alias [#25](https://github.com/Glasses-Neo/OOlib/issues/25)
+- alias class [#25](https://github.com/Glasses-Neo/OOlib/issues/25)
 
 ## [v0.2.2] - 2021-8-26 [YANKED]
 ### Fixed

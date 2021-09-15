@@ -30,7 +30,7 @@ func newClassStatus(
     isPub,
     isOpen = false;
     kind = Normal;
-    name = ident "";
+    name: NimNode;
     base: NimNode = nil
 ): ClassStatus =
   (
@@ -59,7 +59,7 @@ func isInheritance(node): bool {.compileTime.} =
 
 
 func isSuperFunc(node): bool {.compileTime.} =
-  ## Whether struct is `super.f()` or not.
+  ## Returns whether struct is `super.f()` or not.
   node.kind == nnkCall and
   node[0].kind == nnkDotExpr and
   node[0][0].eqIdent"super"
@@ -90,14 +90,14 @@ func insertIn1st*(node; inserted: NimNode) {.compileTime.} =
   node.insert 1, inserted
 
 
-func insertSelf*(node; typeName): NimNode {.compileTime.} =
-  ## Insert `self: typeName` in the 1st of node.params.
-  result = node
+func insertSelf*(theProc; typeName): NimNode {.compileTime.} =
+  ## Inserts `self: typeName` in the 1st of theProc.params.
+  result = theProc
   result.params.insertIn1st newIdentDefs(ident "self", typeName)
 
 
 proc replaceSuper*(node): NimNode =
-  ## Replace `super.f()` with `procCall Base(self).f()`.
+  ## Replaces `super.f()` with `procCall Base(self).f()`.
   result = node
   if node.isSuperFunc:
     result = newTree(
@@ -111,12 +111,12 @@ proc replaceSuper*(node): NimNode =
 
 
 func newSuperStmt(baseName): NimNode {.compileTime.} =
-  ## Generate `var super = Base(self)`.
+  ## Generates `var super = Base(self)`.
   newVarStmt ident"super", newCall(baseName, ident "self")
 
 
 func insertSuperStmt*(theProc; baseName): NimNode {.compileTime.} =
-  ## Insert `var super = Base(self)` in the 1st line of `theProc.body`.
+  ## Inserts `var super = Base(self)` in the 1st line of `theProc.body`.
   result = theProc
   result.body.insert 0, newSuperStmt(baseName)
 
@@ -127,7 +127,7 @@ func delDefaultValue*(node): NimNode {.compileTime.} =
 
 
 func newPostfix(node): NimNode {.compileTime.} =
-  newNimNode(nnkPostfix).add ident"*", node
+  nnkPostfix.newTree ident"*", node
 
 
 proc decideStatus(node; isPub): ClassStatus {.compileTime.} =
@@ -145,27 +145,31 @@ proc decideStatus(node; isPub): ClassStatus {.compileTime.} =
         name = node[0],
         base = node[1][0]
       )
-    elif node.kind == nnkCall:
+    else:
       return newClassStatus(
         isPub = isPub,
         kind = Alias,
         name = node[0],
         base = node[1]
       )
-    error "Missing `distinct` keyword", node
+    error "Unsupported syntax", node
   of nnkInfix:
     if node.isInheritance:
-      result = newClassStatus(
-        isPub = isPub,
-        kind = Inheritance,
-        name = node[1]
-      )
       if node[2].isOpen:
-        result.isOpen = true
-        result.base = node[2][0]
-        return
-      result.base = node[2]
-      return
+        return newClassStatus(
+          isPub = isPub,
+          isOpen = true,
+          kind = Inheritance,
+          name = node[1],
+          base = node[2][0]
+        )
+      return newClassStatus(
+        isPub = isPub,
+        isOpen = true,
+        kind = Inheritance,
+        name = node[1],
+        base = node[2]
+      )
     error "Unsupported syntax", node
   of nnkPragmaExpr:
     if node.isOpen:
@@ -175,10 +179,13 @@ proc decideStatus(node; isPub): ClassStatus {.compileTime.} =
         name = node[0]
       )
       if node[0].isDistinct:
-        result.kind = Distinct
-        result.name = node[0][0]
-        result.base = node[0][1][0]
-        return
+        return newClassStatus(
+          isPub = isPub,
+          isOpen = true,
+          kind = Distinct,
+          name = node[0][0],
+          base = node[0][1][0]
+        )
       return
     error "Unsupported pragma", node
   else:
@@ -215,17 +222,13 @@ proc parseHead*(head: NimNode): ClassStatus {.compileTime.} =
     error "Too many arguments", head
 
 
-func astOfAsgnWith(v: NimNode): NimNode {.compileTime.} =
-  getAst asgnWith(v)
-
-
 func newSelfStmt(typeName): NimNode {.compileTime.} =
-  ## Generate `var self = typeName()`.
+  ## Generates `var self = typeName()`.
   newVarStmt ident"self", newCall(typeName)
 
 
-func newResultAsgn: NimNode {.compileTime.} =
-  newAssignment ident"result", ident"self"
+func newResultAsgn(rhs: string): NimNode {.compileTime.} =
+  newAssignment ident"result", ident rhs
 
 
 func toRecList*(s: seq[NimNode]): NimNode {.compileTime.} =
@@ -244,7 +247,7 @@ proc rmAsteriskFromIdent*(def: NimNode): NimNode {.compileTime.} =
   result = nnkIdentDefs.newNimNode()
   for v in def[0..^3]:
     result.add v.rmAsterisk
-  result.add(def[^2]).add(def[^1])
+  result.add(def[^2], def[^1])
 
 
 func decomposeDefsIntoVars*(s: seq[NimNode]): seq[NimNode] {.compileTime.} =
@@ -256,8 +259,8 @@ func decomposeDefsIntoVars*(s: seq[NimNode]): seq[NimNode] {.compileTime.} =
 proc genNewBody(typeName; vars: seq[NimNode]): NimNode {.compileTime.} =
   result = newStmtList newSelfStmt(typeName)
   for v in vars:
-    result.insertIn1st astOfAsgnWith(v)
-  result.add newResultAsgn()
+    result.insertIn1st getAst(asgnWith v)
+  result.add newResultAsgn"self"
 
 
 func replaceReturnTypeWith(
@@ -272,7 +275,7 @@ proc insertArgs(
     constructor;
     vars: seq[NimNode]
 ): NimNode {.compileTime.} =
-  ## Insert `vars` to constructor args.
+  ## Inserts `vars` to constructor args.
   result = constructor
   for v in vars[0..^1]:
     result.params.insertIn1st(v)
@@ -283,14 +286,13 @@ proc addSignatures(
     status;
     args: seq[NimNode]
 ): NimNode {.compileTime.} =
-  ## Add signatures to `constructor`.
-  result = constructor
-  result.name =
+  ## Adds signatures to `constructor`.
+  constructor.name =
     if status.isPub:
-      newPostfix (ident "new"&status.name.strVal)
+      newPostfix(ident "new"&status.name.strVal)
     else:
       ident "new"&status.name.strVal
-  return result
+  return constructor
     .replaceReturnTypeWith(status.name)
     .insertArgs(args)
 
@@ -304,8 +306,8 @@ func insertBody(
     return
   result.body.insert 0, newSelfStmt(result.params[0])
   for v in vars.decomposeDefsIntoVars():
-    result.body.insertIn1st(astOfAsgnWith v)
-  result.body.add newResultAsgn()
+    result.body.insertIn1st getAst(asgnWith v)
+  result.body.add newResultAsgn"self"
 
 
 proc assistWithDef*(
@@ -313,15 +315,14 @@ proc assistWithDef*(
     status;
     args: seq[NimNode]
 ): NimNode {.compileTime.} =
-  ## Add signatures and insert body to `constructor`.
-  result = constructor
-  return result
+  ## Adds signatures and insert body to `constructor`.
+  return constructor
     .addSignatures(status, args)
     .insertBody(args)
 
 
+# Because it's used in template, must be exported.
 func markWithAsterisk*(theProc): NimNode {.compileTime.} =
-  ## Because it's used in template, must be exported.
   result = theProc
   result.name = newPostfix(theProc.name)
 
@@ -338,7 +339,7 @@ func defObj(status): NimNode {.compileTime.} =
   if status.isPub:
     result[0][0] = newPostfix(result[0][0])
   if status.isOpen:
-    result[0][2][0][1] = newNimNode(nnkOfInherit).add ident "RootObj"
+    result[0][2][0][1] = nnkOfInherit.newTree ident"RootObj"
   result[0][0] = newPragmaExpr(result[0][0], "pClass")
 
 
@@ -363,6 +364,7 @@ func defAlias(status): NimNode {.compileTime.} =
   result = getAst defAlias(status.name, status.base)
   if status.isPub:
     result[0][0] = newPostfix(result[0][0])
+  result[0][0] = newPragmaExpr(result[0][0], "pClass")
 
 
 func getAstOfClassDef(status: ClassStatus): NimNode {.compileTime.} =
@@ -394,25 +396,6 @@ template defNew*(status; args: seq[NimNode]): NimNode =
     newProc(name, params, body).markWithAsterisk()
   else:
     newProc(name, params, body)
-
-
-macro optBase*(p: untyped): untyped =
-  # determines whether to include {.base.} or not for use in auto generated methods
-  let
-    unbased = p.copyNimTree
-    compileStmt = p.copyNimTree
-  compileStmt[4] = nnkPragma.newTree(ident"base")
-
-  result = p
-  result[4] = nnkPragma.newTree(ident"base")
-  result = quote do:
-    {.warningAsError[UseBase]: on.}
-    when compiles(`compileStmt`):
-      `result`
-    else:
-      `unbased`
-
-    {.warningAsError[UseBase]: off.}
 
 
 proc genConstant*(className: string; node: NimNode): NimNode {.compileTime.} =

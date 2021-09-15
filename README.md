@@ -19,7 +19,7 @@ import strformat
 import oolib
 
 
-# add `pub` prefix to publish class
+# add `pub` prefix to export class
 class pub Person:
   var
     name*: string
@@ -50,12 +50,17 @@ let p = newPerson("Tony")
 - `{.final.}` by default
 - `{.open.}` to allow inheritance
 - `super` keyword for `method`
+- Alias class
 
 ### 💭Planned
 - `Pick` like TypeScript's `Pick`
 - `let` member variables
-- Type alias
 - `struct`
+- `protocol`
+
+
+# Changelog
+See [CHANGELOG](https://github.com/Glasses-Neo/OOlib/blob/develop/CHANGELOG.md)
 
 
 ## 🥷Author
