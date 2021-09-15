@@ -90,10 +90,7 @@ func insertIn1st*(node; inserted: NimNode) {.compileTime.} =
   node.insert 1, inserted
 
 
-func insertSelf*(
-    theProc: NimNode{nkProcDef};
-    typeName
-): NimNode {.compileTime.} =
+func insertSelf*(theProc; typeName): NimNode {.compileTime.} =
   ## Inserts `self: typeName` in the 1st of theProc.params.
   result = theProc
   result.params.insertIn1st newIdentDefs(ident "self", typeName)
@@ -118,10 +115,7 @@ func newSuperStmt(baseName): NimNode {.compileTime.} =
   newVarStmt ident"super", newCall(baseName, ident "self")
 
 
-func insertSuperStmt*(
-    theProc: NimNode{nkProcDef};
-    baseName
-): NimNode {.compileTime.} =
+func insertSuperStmt*(theProc; baseName): NimNode {.compileTime.} =
   ## Inserts `var super = Base(self)` in the 1st line of `theProc.body`.
   result = theProc
   result.body.insert 0, newSuperStmt(baseName)
@@ -328,7 +322,7 @@ proc assistWithDef*(
 
 
 # Because it's used in template, must be exported.
-func markWithAsterisk*(theProc: NimNode{nkProcDef}): NimNode {.compileTime.} =
+func markWithAsterisk*(theProc): NimNode {.compileTime.} =
   result = theProc
   result.name = newPostfix(theProc.name)
 
