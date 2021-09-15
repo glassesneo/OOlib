@@ -30,7 +30,7 @@ func newClassStatus(
     isPub,
     isOpen = false;
     kind = Normal;
-    name = ident "";
+    name: NimNode;
     base: NimNode = nil
 ): ClassStatus =
   (
@@ -155,17 +155,21 @@ proc decideStatus(node; isPub): ClassStatus {.compileTime.} =
     error "Unsupported syntax", node
   of nnkInfix:
     if node.isInheritance:
-      result = newClassStatus(
-        isPub = isPub,
-        kind = Inheritance,
-        name = node[1]
-      )
       if node[2].isOpen:
-        result.isOpen = true
-        result.base = node[2][0]
-        return
-      result.base = node[2]
-      return
+        return newClassStatus(
+          isPub = isPub,
+          isOpen = true,
+          kind = Inheritance,
+          name = node[1],
+          base = node[2][0]
+        )
+      return newClassStatus(
+        isPub = isPub,
+        isOpen = true,
+        kind = Inheritance,
+        name = node[1],
+        base = node[2]
+      )
     error "Unsupported syntax", node
   of nnkPragmaExpr:
     if node.isOpen:
@@ -175,10 +179,13 @@ proc decideStatus(node; isPub): ClassStatus {.compileTime.} =
         name = node[0]
       )
       if node[0].isDistinct:
-        result.kind = Distinct
-        result.name = node[0][0]
-        result.base = node[0][1][0]
-        return
+        return newClassStatus(
+          isPub = isPub,
+          isOpen = true,
+          kind = Distinct,
+          name = node[0][0],
+          base = node[0][1][0]
+        )
       return
     error "Unsupported pragma", node
   else:
@@ -336,7 +343,7 @@ func defObj(status): NimNode {.compileTime.} =
   if status.isPub:
     result[0][0] = newPostfix(result[0][0])
   if status.isOpen:
-    result[0][2][0][1] = newNimNode(nnkOfInherit).add ident "RootObj"
+    result[0][2][0][1] = nnkOfInherit.newTree ident"RootObj"
   result[0][0] = newPragmaExpr(result[0][0], "pClass")
 
 
