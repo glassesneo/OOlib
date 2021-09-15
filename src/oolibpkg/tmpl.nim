@@ -10,5 +10,9 @@ template defDistinct*(className, baseName) =
   type className {.final.} = distinct baseName
 
 
+template defAlias*(className, baseName) =
+  type className = baseName
+
+
 template asgnWith*(name) =
   self.name = name

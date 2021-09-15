@@ -12,6 +12,8 @@ macro class*(head, body: untyped): untyped =
   for node in body:
     case node.kind
     of nnkVarSection:
+      if status.kind == Alias:
+        error "Type Alias cannot have member variables", node
       for n in node:
         if n[^2].isEmpty:
           # infer type from default
@@ -44,7 +46,7 @@ macro class*(head, body: untyped): untyped =
       status,
       argsList.filterIt(not it.last.isEmpty).map rmAsteriskFromIdent
     )
-  elif status.kind == Inheritance: discard
+  elif status.kind in [Inheritance, Alias]: discard
   else:
     result.insertIn1st status.defNew(argsList.map rmAsteriskFromIdent)
   for c in constsList:

@@ -8,6 +8,7 @@ type
     Normal
     Inheritance
     Distinct
+    Alias
 
   ClassStatus* = tuple
     isPub, isOpen: bool
@@ -143,6 +144,13 @@ proc decideStatus(node; isPub): ClassStatus {.compileTime.} =
         kind = Distinct,
         name = node[0],
         base = node[1][0]
+      )
+    elif node.kind == nnkCall:
+      return newClassStatus(
+        isPub = isPub,
+        kind = Alias,
+        name = node[0],
+        base = node[1]
       )
     error "Missing `distinct` keyword", node
   of nnkInfix:
@@ -351,6 +359,12 @@ func defDistinct(status): NimNode {.compileTime.} =
     result[0][0][1].add ident "pClass"
 
 
+func defAlias(status): NimNode {.compileTime.} =
+  result = getAst defAlias(status.name, status.base)
+  if status.isPub:
+    result[0][0] = newPostfix(result[0][0])
+
+
 func getAstOfClassDef(status: ClassStatus): NimNode {.compileTime.} =
   result =
     case status.kind
@@ -360,10 +374,13 @@ func getAstOfClassDef(status: ClassStatus): NimNode {.compileTime.} =
       status.defObjWithBase()
     of Distinct:
       status.defDistinct()
+    of Alias:
+      status.defAlias()
 
 
 func defClass*(status: ClassStatus): NimNode {.compileTime.} =
   newStmtList getAstOfClassDef(status)
+
 
 template defNew*(status; args: seq[NimNode]): NimNode =
   var
@@ -451,5 +468,4 @@ proc genConstant*(className: string; node: NimNode): NimNode {.compileTime.} =
         )
       )
     ),
-
   )
