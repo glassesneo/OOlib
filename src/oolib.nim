@@ -2,7 +2,10 @@ import macros, sequtils
 import oolibpkg / [sub, util]
 export optBase, pClass
 
-macro class*(head: untyped{~nkStmtList}, body: untyped{nkStmtList}): untyped =
+macro class*(
+    head: untyped{nkIdent | nkCommand | nkInfix | nkCall | nkPragmaExpr},
+    body: untyped{nkStmtList}
+): untyped =
   let
     status = parseHead(head)
   var

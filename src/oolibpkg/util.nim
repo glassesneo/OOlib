@@ -59,7 +59,7 @@ func isInheritance(node): bool {.compileTime.} =
 
 
 func isSuperFunc(node): bool {.compileTime.} =
-  ## Whether struct is `super.f()` or not.
+  ## Returns whether struct is `super.f()` or not.
   node.kind == nnkCall and
   node[0].kind == nnkDotExpr and
   node[0][0].eqIdent"super"
@@ -91,13 +91,13 @@ func insertIn1st*(node; inserted: NimNode) {.compileTime.} =
 
 
 func insertSelf*(node; typeName): NimNode {.compileTime.} =
-  ## Insert `self: typeName` in the 1st of node.params.
+  ## Inserts `self: typeName` in the 1st of node.params.
   result = node
   result.params.insertIn1st newIdentDefs(ident "self", typeName)
 
 
 proc replaceSuper*(node): NimNode =
-  ## Replace `super.f()` with `procCall Base(self).f()`.
+  ## Replaces `super.f()` with `procCall Base(self).f()`.
   result = node
   if node.isSuperFunc:
     result = newTree(
@@ -111,12 +111,12 @@ proc replaceSuper*(node): NimNode =
 
 
 func newSuperStmt(baseName): NimNode {.compileTime.} =
-  ## Generate `var super = Base(self)`.
+  ## Generates `var super = Base(self)`.
   newVarStmt ident"super", newCall(baseName, ident "self")
 
 
 func insertSuperStmt*(theProc; baseName): NimNode {.compileTime.} =
-  ## Insert `var super = Base(self)` in the 1st line of `theProc.body`.
+  ## Inserts `var super = Base(self)` in the 1st line of `theProc.body`.
   result = theProc
   result.body.insert 0, newSuperStmt(baseName)
 
@@ -220,7 +220,7 @@ func astOfAsgnWith(v: NimNode): NimNode {.compileTime.} =
 
 
 func newSelfStmt(typeName): NimNode {.compileTime.} =
-  ## Generate `var self = typeName()`.
+  ## Generates `var self = typeName()`.
   newVarStmt ident"self", newCall(typeName)
 
 
@@ -272,7 +272,7 @@ proc insertArgs(
     constructor;
     vars: seq[NimNode]
 ): NimNode {.compileTime.} =
-  ## Insert `vars` to constructor args.
+  ## Inserts `vars` to constructor args.
   result = constructor
   for v in vars[0..^1]:
     result.params.insertIn1st(v)
@@ -283,7 +283,7 @@ proc addSignatures(
     status;
     args: seq[NimNode]
 ): NimNode {.compileTime.} =
-  ## Add signatures to `constructor`.
+  ## Adds signatures to `constructor`.
   constructor.name =
     if status.isPub:
       newPostfix(ident "new"&status.name.strVal)
@@ -312,14 +312,14 @@ proc assistWithDef*(
     status;
     args: seq[NimNode]
 ): NimNode {.compileTime.} =
-  ## Add signatures and insert body to `constructor`.
+  ## Adds signatures and insert body to `constructor`.
   return constructor
     .addSignatures(status, args)
     .insertBody(args)
 
 
+# Because it's used in template, must be exported.
 func markWithAsterisk*(theProc): NimNode {.compileTime.} =
-  ## Because it's used in template, must be exported.
   result = theProc
   result.name = newPostfix(theProc.name)
 
