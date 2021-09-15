@@ -19,7 +19,7 @@ import strformat
 import oolib
 
 
-# add `pub` prefix to publish class
+# add `pub` prefix to export class
 class pub Person:
   var
     name*: string
@@ -57,6 +57,10 @@ let p = newPerson("Tony")
 - `let` member variables
 - `struct`
 - `protocol`
+
+
+# Changelog
+See [CHANGELOG](https://github.com/Glasses-Neo/OOlib/blob/develop/CHANGELOG.md)
 
 
 ## 🥷Author
