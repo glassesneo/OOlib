@@ -1,5 +1,5 @@
 import macros, sequtils
-import oolibpkg / [sub, util]
+import oolibpkg / [sub, util, info]
 export optBase, pClass
 
 macro class*(
@@ -7,31 +7,31 @@ macro class*(
     body: untyped{nkStmtList}
 ): untyped =
   let
-    status = parseHead(head)
+    info = parseHead(head)
   var
     argsList, constsList: seq[NimNode]
-    cStatus: ConstructorStatus
-  result = defClass(status)
+    cState: ConstructorState
+  result = defClass(info)
   for node in body:
     case node.kind
     of nnkVarSection:
-      if status.kind == Alias:
+      if info.kind == Alias:
         error "An alias class cannot have variables", node
       for n in node:
         n[^2] = n[^2] or newCall(ident"typeof", n[^1])
         argsList.add n
     of nnkProcDef:
-      cStatus.updateStatus(node)
+      cState.updateStatus(node)
       if node.isConstructor: continue
-      result.add node.insertSelf(status.name)
+      result.add node.insertSelf(info.name)
     of nnkMethodDef:
-      if status.kind == Inheritance:
+      if info.kind == Inheritance:
         node.body = replaceSuper(node.body)
-        result.add node.insertSelf(status.name).insertSuperStmt(status.base)
+        result.add node.insertSelf(info.name).insertSuperStmt(info.base)
         continue
-      result.add node.insertSelf(status.name)
+      result.add node.insertSelf(info.name)
     of nnkFuncDef, nnkIteratorDef, nnkConverterDef, nnkTemplateDef:
-      result.add node.insertSelf(status.name)
+      result.add node.insertSelf(info.name)
     of nnkConstSection:
       for n in node:
         n[^2] = n[^2] or newCall(ident"typeof", n[^1])
@@ -42,16 +42,16 @@ macro class*(
       return
     else:
       error "Unsupported syntax", body
-  if cStatus.hasConstructor:
-    result.insertIn1st cStatus.node.assistWithDef(
-      status,
+  if cState.hasConstructor:
+    result.insertIn1st cState.node.assistWithDef(
+      info,
       argsList.filterIt(not it.last.isEmpty).map rmAsteriskFromIdent
     )
-  elif status.kind in [Inheritance, Alias]: discard
+  elif info.kind in [Inheritance, Alias]: discard
   else:
-    result.insertIn1st status.defNew(argsList.map rmAsteriskFromIdent)
+    result.insertIn1st info.defNew(argsList.map rmAsteriskFromIdent)
   for c in constsList:
-    result.insertIn1st genConstant(status.name.strVal, c)
+    result.insertIn1st genConstant(info.name.strVal, c)
   result[0][0][2][0][2] = argsList.map(delDefaultValue).toRecList()
 
 
