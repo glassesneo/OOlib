@@ -1,5 +1,5 @@
 import macros, sequtils
-import oolibpkg / [sub, util, info]
+import oolibpkg / [sub, util, info, chain]
 export optBase, pClass
 
 macro class*(
@@ -8,51 +8,27 @@ macro class*(
 ): untyped =
   let
     info = parseHead(head)
+  result = defClass(info)
+
   var
+    classBody: NimNode
     argsList, constsList: seq[NimNode]
     cState: ConstructorState
-  result = defClass(info)
-  for node in body:
-    case node.kind
-    of nnkVarSection:
-      if info.kind == Alias:
-        error "An alias class cannot have variables", node
-      for n in node:
-        n[^2] = n[^2] or newCall(ident"typeof", n[^1])
-        argsList.add n
-    of nnkProcDef:
-      cState.updateStatus(node)
-      if node.isConstructor: continue
-      result.add node.insertSelf(info.name)
-    of nnkMethodDef:
-      if info.kind == Inheritance:
-        node.body = replaceSuper(node.body)
-        result.add node.insertSelf(info.name).insertSuperStmt(info.base)
-        continue
-      result.add node.insertSelf(info.name)
-    of nnkFuncDef, nnkIteratorDef, nnkConverterDef, nnkTemplateDef:
-      result.add node.insertSelf(info.name)
-    of nnkConstSection:
-      for n in node:
-        n[^2] = n[^2] or newCall(ident"typeof", n[^1])
-        if n.last.isEmpty:
-          error "A constant must have a value", body
-        constsList.add n
-    of nnkDiscardStmt:
-      return
-    else:
-      error "Unsupported syntax", body
+  (classBody, argsList, constsList, cState) = parseBody(body, info)
+  result.add classBody.copy()
+
   if cState.hasConstructor:
     result.insertIn1st cState.node.assistWithDef(
       info,
       argsList.filterIt(not it.last.isEmpty).map rmAsteriskFromIdent
     )
-  elif info.kind in [Inheritance, Alias]: discard
+  elif info.kind != Normal: discard
   else:
     result.insertIn1st info.defNew(argsList.map rmAsteriskFromIdent)
   for c in constsList:
     result.insertIn1st genConstant(info.name.strVal, c)
-  result[0][0][2][0][2] = argsList.map(delDefaultValue).toRecList()
+  if info.kind in {Normal, Inheritance}:
+    result[0][0][2][0][2] = argsList.map(delDefaultValue).toRecList()
 
 
 proc isClass*(T: typedesc): bool =
