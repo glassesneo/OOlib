@@ -1,5 +1,5 @@
 import macros
-import info, util
+import util, classutil
 
 
 using
