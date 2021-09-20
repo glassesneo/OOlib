@@ -9,8 +9,12 @@ using
 
 
 proc parseVar(node; argsList; info) {.compileTime.} =
-  if info.kind == Alias:
-    error "An alias class cannot have variables", node
+  case info.kind
+  of Distinct:
+    error "A distinct type cannot have variables", node
+  of Alias:
+    error "A type alias cannot have variables", node
+  else: discard
   for n in node:
     n.inferValType()
     argsList.add n
@@ -30,7 +34,7 @@ proc parseCallable(node, info): NimNode {.compileTime.} =
   of nnkProcDef:
     if node.isConstructor:
       if not info.node.isEmpty:
-        error "Constructor already exists.", node
+        error "Constructor already exists", node
       info.node = node
     result.add node.insertSelf(info.name)
   of nnkMethodDef:
