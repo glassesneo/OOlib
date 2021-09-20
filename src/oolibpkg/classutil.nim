@@ -11,12 +11,7 @@ type
   ClassInfo* = tuple
     isPub, isOpen: bool
     kind: ClassKind
-    name, base: NimNode
-
-  ConstructorState* = tuple
-    hasConstructor: bool
-    node: NimNode
-
+    name, base, node: NimNode
 
 using
   node, constructor: NimNode
@@ -36,8 +31,10 @@ func newClassInfo(
     isOpen: isOpen,
     kind: kind,
     name: name,
-    base: base
+    base: base,
+    node: newEmptyNode()
   )
+
 
 proc pickStatus(node; isPub): ClassInfo {.compileTime.} =
   case node.kind
@@ -131,13 +128,6 @@ proc parseHead*(head: NimNode): ClassInfo {.compileTime.} =
     error "Too many arguments", head
 
 
-proc updateStatus*(cStatus: var ConstructorState; node) {.compileTime.} =
-  if node.isConstructor:
-    if cStatus.hasConstructor: error "Constructor already exists", node
-    cStatus.hasConstructor = true
-    cStatus.node = node
-
-
 proc addSignatures(
     constructor;
     info;
@@ -160,7 +150,7 @@ proc assistWithDef*(
     args: seq[NimNode]
 ): NimNode {.compileTime.} =
   ## Adds signatures and insert body to `constructor`.
-  return constructor
+  constructor
     .addSignatures(info, args)
     .insertBody(args)
 
@@ -217,7 +207,7 @@ func defClass*(info: ClassInfo): NimNode {.compileTime.} =
 
 template defNew*(info; args: seq[NimNode]): NimNode =
   var
-    name = ident "new"&info.name.strVal
+    name = ident "new"&strVal(info.name)
     params = info.name&args
     body = genNewBody(
       info.name,

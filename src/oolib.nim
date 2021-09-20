@@ -1,30 +1,27 @@
 import macros, sequtils
 import oolibpkg / [sub, util, classutil, parse]
+import oolibpkg / state / [states, context]
 export optBase, pClass
 
 macro class*(
     head: untyped{nkIdent | nkCommand | nkInfix | nkCall | nkPragmaExpr},
     body: untyped{nkStmtList}
 ): untyped =
-  let
-    info = parseHead(head)
-  result = defClass(info)
-
   var
+    info = parseHead(head)
     classBody: NimNode
     argsList, constsList: seq[NimNode]
-    cState: ConstructorState
-  (classBody, argsList, constsList, cState) = parseBody(body, info)
+
+  (classBody, argsList, constsList) = parseBody(body, info)
+  result = defClass(info)
   result.add classBody.copy()
 
-  if cState.hasConstructor:
-    result.insertIn1st cState.node.assistWithDef(
-      info,
-      argsList.filterIt(not it.last.isEmpty).map rmAsteriskFromIdent
-    )
-  elif info.kind != Normal: discard
-  else:
-    result.insertIn1st info.defNew(argsList.map rmAsteriskFromIdent)
+  let
+    context = newContext(newState(info))
+    ctorNode = context.defConstructor(info, argsList)
+
+  if not ctorNode.isEmpty:
+    result.insertIn1st ctorNode
   for c in constsList:
     result.insertIn1st genConstant(info.name.strVal, c)
   if info.kind in {Normal, Inheritance}:

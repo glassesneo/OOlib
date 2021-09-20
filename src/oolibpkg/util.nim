@@ -45,6 +45,16 @@ func isEmpty*(node): bool {.compileTime.} =
   node.kind == nnkEmpty
 
 
+func hasDefault*(node): bool {.compileTime.} =
+  not node.last.isEmpty
+
+
+func inferValType*(node) {.compileTime.} =
+  ## Infers type from default if a type annotation is empty.
+  node.expectKind {nnkConstDef, nnkIdentDefs}
+  node[^2] = node[^2] or newCall(ident"typeof", node[^1])
+
+
 func insertIn1st*(node; inserted: NimNode) {.compileTime.} =
   node.insert 1, inserted
 

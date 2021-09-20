@@ -5,32 +5,33 @@ import util, classutil
 using
   node: NimNode
   argsList, constsList: var seq[NimNode]
-  info: ClassInfo
-  cState: var ConstructorState
+  info: var ClassInfo
 
 
 proc parseVar(node; argsList; info) {.compileTime.} =
   if info.kind == Alias:
     error "An alias class cannot have variables", node
   for n in node:
-    n[^2] = n[^2] or newCall(ident"typeof", n[^1])
+    n.inferValType()
     argsList.add n
 
 
 proc parseConst(node; constsList) {.compileTime.} =
   for n in node:
-    n[^2] = n[^2] or newCall(ident"typeof", n[^1])
-    if n.last.isEmpty:
+    n.inferValType()
+    if not n.hasDefault:
       error "A constant must have a value", node
     constsList.add n
 
 
-proc parseCallable(node, info, cState): NimNode {.compileTime.} =
+proc parseCallable(node, info): NimNode {.compileTime.} =
   result = nnkStmtList.newNimNode()
   case node.kind
   of nnkProcDef:
-    cState.updateStatus(node)
-    if node.isConstructor: return
+    if node.isConstructor:
+      if not info.node.isEmpty:
+        error "Constructor already exists.", node
+      info.node = node
     result.add node.insertSelf(info.name)
   of nnkMethodDef:
     if info.kind == Inheritance:
@@ -43,14 +44,12 @@ proc parseCallable(node, info, cState): NimNode {.compileTime.} =
   else: discard
 
 
-
 proc parseBody*(
     body: NimNode;
     info;
-): (NimNode, seq[NimNode], seq[NimNode], ConstructorState) {.compileTime.} =
+): (NimNode, seq[NimNode], seq[NimNode]) {.compileTime.} =
   var
     argsList, constsList: seq[NimNode]
-    cState: ConstructorState
     classBody = nnkStmtList.newNimNode()
   for node in body:
     case node.kind
@@ -61,6 +60,6 @@ proc parseBody*(
     of nnkDiscardStmt:
       discard
     elif node.kind in (RoutineNodes - {nnkDo, nnkLambda, nnkMacroDef}):
-      parseCallable(node, info, cState).copyChildrenTo classBody
+      parseCallable(node, info).copyChildrenTo classBody
     else: discard
-  result = (classBody, argsList, constsList, cState)
+  result = (classBody, argsList, constsList)
