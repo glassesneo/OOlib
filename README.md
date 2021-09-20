@@ -59,7 +59,7 @@ let p = newPerson("Tony")
 - `protocol`
 
 
-# Changelog
+## Changelog
 See [CHANGELOG](https://github.com/Glasses-Neo/OOlib/blob/develop/CHANGELOG.md)
 
 
