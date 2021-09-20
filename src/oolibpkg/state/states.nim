@@ -1,4 +1,4 @@
-import sequtils, macros
+import sequtils, macros, sugar
 import .. / util
 import .. / classutil
 import state_interface
@@ -32,7 +32,7 @@ proc defConstructor(
 proc toInterface*(self: NormalState): IState {.compileTime.} =
   result = (
     defConstructor:
-    proc(info: ClassInfo, argsList: seq[NimNode]): NimNode =
+    (info: ClassInfo, argsList: seq[NimNode]) =>
       self.defConstructor(info, argsList)
   )
 
@@ -56,7 +56,7 @@ proc defConstructor(
 proc toInterface*(self: InheritanceState): IState {.compileTime.} =
   result = (
     defConstructor:
-    proc(info: ClassInfo, argsList: seq[NimNode]): NimNode =
+    (info: ClassInfo, argsList: seq[NimNode]) =>
       self.defConstructor(info, argsList)
   )
 
@@ -72,7 +72,7 @@ proc defConstructor(
 proc toInterface*(self: DistinctState): IState {.compileTime.} =
   result = (
     defConstructor:
-    proc(info: ClassInfo, argsList: seq[NimNode]): NimNode =
+    (info: ClassInfo, argsList: seq[NimNode]) =>
       self.defConstructor(info, argsList)
   )
 
@@ -88,7 +88,7 @@ proc defConstructor(
 proc toInterface*(self: AliasState): IState {.compileTime.} =
   result = (
     defConstructor:
-    proc(info: ClassInfo, argsList: seq[NimNode]): NimNode =
+    (info: ClassInfo, argsList: seq[NimNode]) =>
       self.defConstructor(info, argsList)
   )
 
