@@ -9,10 +9,8 @@ macro class*(
 ): untyped =
   var
     info = parseHead(head)
-    classBody: NimNode
-    argsList, constsList: seq[NimNode]
+    (classBody, argsList, constsList) = parseBody(body, info)
 
-  (classBody, argsList, constsList) = parseBody(body, info)
   result = defClass(info)
   result.add classBody.copy()
 
