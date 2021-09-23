@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## [Unreleased]
 ### Added
 - type inference for default args [#55](https://github.com/Glasses-Neo/OOlib/pull/55)
-  - member variables with default values can now be defined without type declaration
+  - member variables with default values can now be defined without type annotation
 - class data constants [#56](https://github.com/Glasses-Neo/OOlib/issues/56)
 - `isClass` proc to check type is class or not [#27](https://github.com/Glasses-Neo/OOlib/issues/27)
 - alias class [#25](https://github.com/Glasses-Neo/OOlib/issues/25)

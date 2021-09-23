@@ -32,5 +32,5 @@ proc isClass*(T: typedesc): bool =
 
 
 proc isClass*[T](instance: T): bool =
-  ## Is an alias for `isClass(T)`
+  ## Is an alias for `isClass(T)`.
   T.isClass()
