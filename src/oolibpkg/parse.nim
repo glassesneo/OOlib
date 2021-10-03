@@ -10,7 +10,7 @@ using
 
 proc parseVar(node; argsList; info) {.compileTime.} =
   ## Parse and convert `node` to member variables.
-  ## `node` have to be `nnkVarSection`.
+  ## `node` has to be `nnkVarSection`.
   case info.kind
   of Distinct:
     error "A distinct type cannot have variables", node
@@ -24,7 +24,7 @@ proc parseVar(node; argsList; info) {.compileTime.} =
 
 proc parseConst(node; constsList) {.compileTime.} =
   ## Parse and convert `node` to class data constants.
-  ## `node` have to be `nnkConstSection`.
+  ## `node` has to be `nnkConstSection`.
   for n in node:
     n.inferValType()
     if not n.hasDefault:
@@ -34,7 +34,7 @@ proc parseConst(node; constsList) {.compileTime.} =
 
 proc parseCallable(node, info): NimNode {.compileTime.} =
   ## Parse `node` and add sigunatures to routines.
-  ## `node` have to be one of `RoutineNodes - {nnkDo, nnkLambda, nnkMacroDef}`.
+  ## `node` hax to be one of `RoutineNodes - {nnkDo, nnkLambda, nnkMacroDef}`.
   result = nnkStmtList.newNimNode()
   case node.kind
   of nnkProcDef:
