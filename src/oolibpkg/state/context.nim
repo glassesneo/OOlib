@@ -14,6 +14,7 @@ proc newContext*(state: IState): Context {.compileTime.} =
 proc defConstructor*(
     self: Context,
     info: ClassInfo,
+    partOfCtor: NimNode,
     argsList: seq[NimNode]
 ): NimNode {.compileTime.} =
-  self.state.defConstructor(info, argsList)
+  self.state.defConstructor(info, partOfCtor, argsList)

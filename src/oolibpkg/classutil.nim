@@ -11,7 +11,7 @@ type
   ClassInfo* = tuple
     isPub, isOpen: bool
     kind: ClassKind
-    name, base, node: NimNode
+    name, base: NimNode
 
 using
   node, constructor: NimNode
@@ -32,7 +32,6 @@ func newClassInfo(
     kind: kind,
     name: name,
     base: base,
-    node: newEmptyNode()
   )
 
 

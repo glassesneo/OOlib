@@ -3,4 +3,6 @@ import .. / classutil
 
 type
   IState* = tuple
-    defConstructor: (info: ClassInfo, argsList: seq[NimNode]) -> NimNode
+    defConstructor: (
+      info: ClassInfo, partOfCtor: NimNode, argsList: seq[NimNode]
+    ) -> NimNode

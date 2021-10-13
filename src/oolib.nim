@@ -9,14 +9,14 @@ macro class*(
 ): untyped =
   var
     info = parseHead(head)
-    (classBody, argsList, constsList) = parseBody(body, info)
+    (classBody, argsList, constsList, partOfCtor) = parseBody(body, info)
 
   result = defClass(info)
   result.add classBody.copy()
 
   let
     context = newContext(newState(info))
-    ctorNode = context.defConstructor(info, argsList)
+    ctorNode = context.defConstructor(info, partOfCtor, argsList)
 
   if not ctorNode.isEmpty:
     result.insertIn1st ctorNode
