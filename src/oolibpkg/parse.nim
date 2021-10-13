@@ -62,8 +62,6 @@ proc parseBody*(
       classBody.add node.insertSelf(info.name)
     of nnkFuncDef, nnkIteratorDef, nnkConverterDef, nnkTemplateDef:
       classBody.add node.insertSelf(info.name)
-    of nnkDiscardStmt:
-      discard
     else:
       discard
   result = (classBody, argsList, constsList, partOfCtor)
