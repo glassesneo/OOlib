@@ -33,7 +33,8 @@ class pub Person:
 
 
 # auto define constructor
-let p = newPerson("Tony")
+let p1 = newPerson("Tony")
+let p2 = newPerson("Steve", 100)
 ```
 
 
