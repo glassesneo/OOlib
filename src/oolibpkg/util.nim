@@ -17,7 +17,10 @@ func isPub*(node): bool {.compileTime.} =
 
 
 func isOpen*(node): bool {.compileTime.} =
-  node.kind == nnkPragmaExpr and node[1][0].eqIdent"open"
+  if node.kind != nnkPragmaExpr: return
+  for n in node[1]:
+    if n.eqIdent "open":
+      return true
 
 
 func isInheritance*(node): bool {.compileTime.} =
