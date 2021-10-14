@@ -8,6 +8,12 @@ using
   isPub: bool
 
 
+func contains(node; ident: string): bool {.compileTime.} =
+  for n in node:
+    if n.eqIdent ident:
+      return true
+
+
 func isDistinct*(node): bool {.compileTime.} =
   node.kind == nnkCall and node[1].kind == nnkDistinctTy
 
@@ -17,10 +23,7 @@ func isPub*(node): bool {.compileTime.} =
 
 
 func isOpen*(node): bool {.compileTime.} =
-  if node.kind != nnkPragmaExpr: return
-  for n in node[1]:
-    if n.eqIdent "open":
-      return true
+  node.kind == nnkPragmaExpr and "open" in node[1]
 
 
 func isInheritance*(node): bool {.compileTime.} =
