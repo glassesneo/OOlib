@@ -18,6 +18,8 @@ proc parseVar(node; argsList; info) {.compileTime.} =
     error "A type alias cannot have variables", node
   else: discard
   for n in node:
+    if "noNewDef" in info.pragmas and n.hasDefault:
+      error "default values cannot be used with {.noNewDef.}", n
     n.inferValType()
     argsList.add n
 

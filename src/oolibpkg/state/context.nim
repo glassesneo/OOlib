@@ -1,3 +1,4 @@
+import macros
 import .. / classutil
 import state_interface
 
@@ -17,4 +18,6 @@ proc defConstructor*(
     partOfCtor: NimNode,
     argsList: seq[NimNode]
 ): NimNode {.compileTime.} =
+  if "noNewDef" in info.pragmas:
+    return newEmptyNode()
   self.state.defConstructor(info, partOfCtor, argsList)
