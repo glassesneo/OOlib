@@ -8,6 +8,12 @@ using
   isPub: bool
 
 
+func contains*(node; str: string): bool {.compileTime.} =
+  for n in node:
+    if n.eqIdent str:
+      return true
+
+
 func isDistinct*(node): bool {.compileTime.} =
   node.kind == nnkCall and node[1].kind == nnkDistinctTy
 

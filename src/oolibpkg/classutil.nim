@@ -62,6 +62,8 @@ proc pickStatus(node; isPub): ClassInfo {.compileTime.} =
   of nnkInfix:
     if node.isInheritance:
       if node[2].kind == nnkPragmaExpr:
+        if "open" in node[2][1]:
+          warning "{.open.} is ignored in a definition of alias", node
         return newClassInfo(
           isPub = isPub,
           pragmas = node[2][1].toSeq(),
@@ -87,6 +89,8 @@ proc pickStatus(node; isPub): ClassInfo {.compileTime.} =
         base = node[0][1][0]
       )
     elif node[0].kind == nnkCall:
+      if "open" in node[1]:
+        warning "{.open.} is ignored in a definition of alias", node
       return newClassInfo(
         isPub = isPub,
         pragmas = node[1].toSeq(),
@@ -117,7 +121,7 @@ proc parseHead*(head: NimNode): ClassInfo {.compileTime.} =
   of 3:
     if head.isInheritance:
       if head[2].kind == nnkPragmaExpr:
-        if "open" in head[2][1].toSeq():
+        if "open" in head[2][1]:
           warning "{.open.} is ignored in a definition of subclass", head
         return newClassInfo(
           pragmas = head[2][1].toSeq(),
