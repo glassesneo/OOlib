@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - class data constants [#56](https://github.com/Glasses-Neo/OOlib/issues/56)
 - `isClass` proc to check type is class or not [#27](https://github.com/Glasses-Neo/OOlib/issues/27)
 - alias class [#25](https://github.com/Glasses-Neo/OOlib/issues/25)
+- `{.noNewDef.}` to not define constructor [#43](https://github.com/Glasses-Neo/OOlib/issues/43)
 
 ## [v0.2.2] - 2021-8-26 [YANKED]
 ### Fixed
