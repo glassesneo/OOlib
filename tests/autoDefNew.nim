@@ -6,14 +6,14 @@ import ../src/oolib
 
 class A:
   var
-    a: int = 4
-    b: string = "default"
+    a = 4
+    b = "default"
 
 
 class B:
   var
     c: string
-    d: bool = true
+    d = true
 
 
 let

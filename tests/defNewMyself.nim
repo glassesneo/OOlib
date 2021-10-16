@@ -15,7 +15,7 @@ class A:
 
 class B:
   var
-    c, d: string = ""
+    c, d = ""
     e: bool
 
   proc `new` =

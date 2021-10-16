@@ -1,60 +1,34 @@
-import macros
-import oolibpkg / [util]
+import macros, sequtils
+import oolib / [sub, util, classutil, parse]
+import oolib / state / [states, context]
+export optBase, pClass
+
+macro class*(
+    head: untyped{nkIdent | nkCommand | nkInfix | nkCall | nkPragmaExpr},
+    body: untyped{nkStmtList}
+): untyped =
+  let info = parseHead(head)
+  var (classBody, argsList, constsList, partOfCtor) = parseBody(body, info)
+
+  result = defClass(info)
+  result.add classBody.copy()
+
+  let context = newContext(newState(info))
+  let ctorNode = context.defConstructor(info, partOfCtor, argsList)
+
+  if not ctorNode.isEmpty:
+    result.insertIn1st ctorNode
+  for c in constsList:
+    result.insertIn1st genConstant(info.name.strVal, c)
+  if info.kind in {Normal, Inheritance}:
+    result[0][0][2][0][2] = argsList.map(delDefaultValue).toRecList()
 
 
-macro class*(head, body: untyped): untyped =
-  let
-    status = parseHead(head)
-  var
-    recList = newNimNode(nnkRecList)
-    argsList, argsListWithDefault: seq[NimNode]
-    cStatus: ConstructorStatus
-  result = defClass(status)
-  for node in body:
-    case node.kind
-    of nnkVarSection:
-      for n in node:
-        if n[^2].isEmpty:
-          error "Please write the variable type. `class` macro does not have type inference. #5", n
-        argsList.add n
-        if not n.last.isEmpty:
-          argsListWithDefault.add n
-        recList.add n.delDefaultValue()
-    of nnkProcDef:
-      cStatus.updateStatus(node)
-      if not node.isConstructor:
-        result.add node.insertSelf(status.name)
-    of nnkMethodDef:
-      if status.kind == Inheritance:
-        node.body = replaceSuper(node.body)
-        result.add node.insertSelf(status.name).insertSuperStmt(status.base)
-      else:
-        result.add node.insertSelf(status.name)
-    of nnkFuncDef, nnkIteratorDef, nnkConverterDef, nnkTemplateDef:
-      result.add node.insertSelf(status.name)
-    of nnkDiscardStmt:
-      return
-    else:
-      error "Unsupported syntax #1", body
-  if cStatus.hasConstructor:
-    result.insertIn1st(
-      cStatus.node.insertStmts(
-        status.isPub,
-        status.name,
-        argsListWithDefault.rmAsteriskFromEachDef()
-      )
-    )
-  elif status.kind == Inheritance:
-    discard
-  else:
-    let
-      argsListWithAsterisksRemoved = argsList.rmAsteriskFromEachDef()
-      theNew = genTheNew(status.isPub):
-        name = ident "new"&status.name.strVal
-        params = status.name&argsListWithAsterisksRemoved
-        body = genNewBody(
-          status.name,
-          argsListWithAsterisksRemoved
-        )
-    result.insertIn1st theNew
-  result[0][0][2][0][2] = recList
+proc isClass*(T: typedesc): bool =
+  ## Returns whether `T` is class or not.
+  T.hasCustomPragma(pClass)
+
+
+proc isClass*[T](instance: T): bool =
+  ## Is an alias for `isClass(T)`.
+  T.isClass()

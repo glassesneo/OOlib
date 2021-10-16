@@ -1,7 +1,8 @@
 # 👑OOlib
-![license](https://img.shields.io/github/license/Glasses-Neo/oolib?style=for-the-badge)
-![code size](https://img.shields.io/github/languages/code-size/Glasses-Neo/oolib?style=for-the-badge)<br/>
-[![nimble](https://raw.githubusercontent.com/yglukhov/nimble-tag/master/nimble_js.png)](https://github.com/yglukhov/nimble-tag)<br/>
+![license](https://img.shields.io/github/license/Glasses-Neo/OOlib?color=blueviolet)
+[![test](https://github.com/Glasses-Neo/OOlib/actions/workflows/test.yml/badge.svg)](https://github.com/Glasses-Neo/OOlib/actions/workflows/test.yml)
+![contributors](https://img.shields.io/github/contributors/Glasses-Neo/OOlib?color=important)
+![stars](https://img.shields.io/github/stars/Glasses-Neo/OOlib?style=social)
 
 ![icon](./oolib.png)
 
@@ -9,7 +10,7 @@
 
 
 ## 🗺Overview
-OOlib is a syntax sugar which provides user-defined types, procedures, etc...
+OOlib is a nimble package which provides user-defined types, procedures, etc...
 
 
 ## 📜Usage
@@ -18,11 +19,11 @@ import strformat
 import oolib
 
 
-# add `pub` prefix to publish class
+# add `pub` prefix to export class
 class pub Person:
   var
     name*: string
-    age*: int = 0
+    age* = 0
 
   # auto insert `self` as first argument
   proc `$`*: string = fmt"<Person> name: {self.name}"
@@ -32,26 +33,35 @@ class pub Person:
 
 
 # auto define constructor
-let p = newPerson("Tony")
+let p1 = newPerson("Tony")
+let p2 = newPerson("Steve", 100)
 ```
 
 
 ## ✨Features
 - Member variables with default values
+- Class data constants
 - Definition of `proc`, `method`, `func`, etc... (the only exception being `macro`)
 - Auto inserting `self` as first argument
 - Auto definition of constructor (high performance!)
 - Assistance with constructor definition
 - `pub` modifier instead of `*`
-- Inheritance with `of` modifier (for now, only object can be inherited)
+- Inheritance with `of` modifier
 - Creating distinct type with `distinct` modifier
 - `{.final.}` by default
 - `{.open.}` to allow inheritance
 - `super` keyword for `method`
+- Alias class
 
 ### 💭Planned
-- Support for more modifiers (e.g. `[T]`, `{.pragma.}`)
+- `Pick` like TypeScript's `Pick`
 - `let` member variables
+- `struct`
+- `protocol`
+
+
+## Changelog
+See [CHANGELOG](https://github.com/Glasses-Neo/OOlib/blob/develop/CHANGELOG.md)
 
 
 ## 🥷Author
