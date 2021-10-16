@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
+
+## [v0.3.0] - 2021-10-16
 ### Added
 - type inference for default args [#55](https://github.com/Glasses-Neo/OOlib/pull/55)
   - member variables with default values can now be defined without type annotation
@@ -39,7 +41,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## v0.1.0 - 2021-8-1
 - 🎉 first release!
 
-[Unreleased]: https://github.com/Glasses-Neo/OOlib/compare/b2478d904a1644509f0f86b921e6f0f8caf747cf...HEAD
+[Unreleased]: https://github.com/Glasses-Neo/OOlib/compare/5a1e429ea80d9dedc482d918f991140116699dc1...HEAD
+[v0.3.0]: https://github.com/Glasses-Neo/OOlib/compare/b2478d904a1644509f0f86b921e6f0f8caf747cf...5a1e429ea80d9dedc482d918f991140116699dc1
 [v0.2.2]: https://github.com/Glasses-Neo/OOlib/compare/b33007b4598a58e587eb71d9e991e1af56affa24...b2478d904a1644509f0f86b921e6f0f8caf747cf
 [v0.2.1]: https://github.com/Glasses-Neo/OOlib/compare/743a473841f7efdb41652678fe8a224cdbb7b5b4...b33007b4598a58e587eb71d9e991e1af56affa24
 [v0.2.0]: https://github.com/Glasses-Neo/OOlib/compare/5a1a0d2aadcbd30d723951d1b8418a653c86bf65...743a473841f7efdb41652678fe8a224cdbb7b5b4
