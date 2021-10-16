@@ -7,16 +7,14 @@ macro class*(
     head: untyped{nkIdent | nkCommand | nkInfix | nkCall | nkPragmaExpr},
     body: untyped{nkStmtList}
 ): untyped =
-  var
-    info = parseHead(head)
-    (classBody, argsList, constsList, partOfCtor) = parseBody(body, info)
+  let info = parseHead(head)
+  var (classBody, argsList, constsList, partOfCtor) = parseBody(body, info)
 
   result = defClass(info)
   result.add classBody.copy()
 
-  let
-    context = newContext(newState(info))
-    ctorNode = context.defConstructor(info, partOfCtor, argsList)
+  let context = newContext(newState(info))
+  let ctorNode = context.defConstructor(info, partOfCtor, argsList)
 
   if not ctorNode.isEmpty:
     result.insertIn1st ctorNode

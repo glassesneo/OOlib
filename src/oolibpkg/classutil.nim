@@ -9,7 +9,8 @@ type
     Alias
 
   ClassInfo* = tuple
-    isPub, isOpen: bool
+    isPub: bool
+    pragmas: seq[string]
     kind: ClassKind
     name, base: NimNode
 
@@ -20,15 +21,15 @@ using
 
 
 func newClassInfo(
-    isPub,
-    isOpen = false;
+    isPub = false;
+    pragmas: seq[string] = @[];
     kind = Normal;
     name: NimNode;
     base: NimNode = nil
 ): ClassInfo =
   (
     isPub: isPub,
-    isOpen: isOpen,
+    pragmas: pragmas,
     kind: kind,
     name: name,
     base: base,
@@ -60,39 +61,44 @@ proc pickStatus(node; isPub): ClassInfo {.compileTime.} =
     error "Unsupported syntax", node
   of nnkInfix:
     if node.isInheritance:
-      if node[2].isOpen:
+      if node[2].kind == nnkPragmaExpr:
         return newClassInfo(
           isPub = isPub,
-          isOpen = true,
+          pragmas = node[2][1].toSeq(),
           kind = Inheritance,
           name = node[1],
           base = node[2][0]
         )
       return newClassInfo(
         isPub = isPub,
-        isOpen = true,
         kind = Inheritance,
         name = node[1],
         base = node[2]
       )
     error "Unsupported syntax", node
   of nnkPragmaExpr:
-    if node.isOpen:
-      result = newClassInfo(
+    # it's form `class A {.pragma.}` or `class A(T) {.pragma.}`
+    if node[0].isDistinct:
+      return newClassInfo(
         isPub = isPub,
-        isOpen = true,
-        name = node[0]
+        pragmas = node[1].toSeq(),
+        kind = Distinct,
+        name = node[0][0],
+        base = node[0][1][0]
       )
-      if node[0].isDistinct:
-        return newClassInfo(
-          isPub = isPub,
-          isOpen = true,
-          kind = Distinct,
-          name = node[0][0],
-          base = node[0][1][0]
-        )
-      return
-    error "Unsupported pragma", node
+    elif node[0].kind == nnkCall:
+      return newClassInfo(
+        isPub = isPub,
+        pragmas = node[1].toSeq(),
+        kind = Alias,
+        name = node[0][0],
+        base = node[0][1]
+      )
+    return newClassInfo(
+      isPub = isPub,
+      pragmas = node[1].toSeq(),
+      name = node[0]
+    )
   else:
     error "Unsupported syntax", node
 
@@ -110,9 +116,11 @@ proc parseHead*(head: NimNode): ClassInfo {.compileTime.} =
     )
   of 3:
     if head.isInheritance:
-      if head[2].isOpen:
-        warning "{.open.} is ignored in a definition of subclass", head
+      if head[2].kind == nnkPragmaExpr:
+        if "open" in head[2][1].toSeq():
+          warning "{.open.} is ignored in a definition of subclass", head
         return newClassInfo(
+          pragmas = head[2][1].toSeq(),
           kind = Inheritance,
           name = head[1],
           base = head[2][0]
@@ -158,7 +166,7 @@ func defObj*(info): NimNode {.compileTime.} =
   result = getAst defObj(info.name)
   if info.isPub:
     result[0][0] = newPostfix(result[0][0])
-  if info.isOpen:
+  if "open" in info.pragmas:
     result[0][2][0][1] = nnkOfInherit.newTree ident"RootObj"
   result[0][0] = newPragmaExpr(result[0][0], "pClass")
 
@@ -174,7 +182,7 @@ func defDistinct*(info): NimNode {.compileTime.} =
   result = getAst defDistinct(info.name, info.base)
   if info.isPub:
     result[0][0][0] = newPostfix(result[0][0][0])
-  if info.isOpen:
+  if "open" in info.pragmas:
     # replace {.final.} with {.inheritable.}
     result[0][0][1][0] = ident "inheritable"
     result[0][0][1].add ident "pClass"

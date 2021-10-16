@@ -8,22 +8,12 @@ using
   isPub: bool
 
 
-func contains(node; ident: string): bool {.compileTime.} =
-  for n in node:
-    if n.eqIdent ident:
-      return true
-
-
 func isDistinct*(node): bool {.compileTime.} =
   node.kind == nnkCall and node[1].kind == nnkDistinctTy
 
 
 func isPub*(node): bool {.compileTime.} =
   node.kind == nnkCommand and node[0].eqIdent"pub"
-
-
-func isOpen*(node): bool {.compileTime.} =
-  node.kind == nnkPragmaExpr and "open" in node[1]
 
 
 func isInheritance*(node): bool {.compileTime.} =
@@ -121,6 +111,12 @@ func toRecList*(s: seq[NimNode]): NimNode {.compileTime.} =
   result = nnkRecList.newNimNode()
   for def in s:
     result.add def
+
+
+func toSeq*(node: NimNode): seq[string] {.compileTime.} =
+  node.expectKind nnkPragma
+  for s in node:
+    result.add s.strVal
 
 
 func rmAsterisk(node): NimNode {.compileTime.} =
