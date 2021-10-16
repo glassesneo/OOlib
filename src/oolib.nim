@@ -1,6 +1,6 @@
 import macros, sequtils
-import oolibpkg / [sub, util, classutil, parse]
-import oolibpkg / state / [states, context]
+import oolib / [sub, util, classutil, parse]
+import oolib / state / [states, context]
 export optBase, pClass
 
 macro class*(
