@@ -1,7 +1,9 @@
 import sequtils, macros, sugar
 import .. / util
 import .. / classutil
+import .. / tmpl
 import state_interface
+
 
 type
   NormalState* = ref object
@@ -11,6 +13,18 @@ type
   DistinctState* = ref object
 
   AliasState* = ref object
+
+
+proc defClass(
+    self: NormalState,
+    info: ClassInfo
+): NimNode {.compileTime.} =
+  result = getAst defObj(info.name)
+  if info.isPub:
+    result[0][0] = newPostfix(result[0][0])
+  if "open" in info.pragmas:
+    result[0][2][0][1] = nnkOfInherit.newTree ident"RootObj"
+  result[0][0] = newPragmaExpr(result[0][0], "pClass")
 
 
 proc defConstructor(
@@ -31,10 +45,21 @@ proc defConstructor(
 
 proc toInterface*(self: NormalState): IState {.compileTime.} =
   result = (
+    defClass: (info: ClassInfo) => self.defClass(info),
     defConstructor:
     (info: ClassInfo, partOfCtor: NimNode, argsList: seq[NimNode]) =>
       self.defConstructor(info, partOfCtor, argsList)
   )
+
+
+proc defClass(
+    self: InheritanceState,
+    info: ClassInfo
+): NimNode {.compileTime.} =
+  result = getAst defObjWithBase(info.name, info.base)
+  if info.isPub:
+    result[0][0] = newPostfix(result[0][0])
+  result[0][0] = newPragmaExpr(result[0][0], "pClass")
 
 
 proc defConstructor(
@@ -55,10 +80,24 @@ proc defConstructor(
 
 proc toInterface*(self: InheritanceState): IState {.compileTime.} =
   result = (
+    defClass: (info: ClassInfo) => self.defClass(info),
     defConstructor:
     (info: ClassInfo, partOfCtor: NimNode, argsList: seq[NimNode]) =>
       self.defConstructor(info, partOfCtor, argsList)
   )
+
+
+proc defClass(
+    self: DistinctState,
+    info: ClassInfo
+): NimNode {.compileTime.} =
+  result = getAst defDistinct(info.name, info.base)
+  if info.isPub:
+    result[0][0][0] = newPostfix(result[0][0][0])
+  if "open" in info.pragmas:
+    # replace {.final.} with {.inheritable.}
+    result[0][0][1][0] = ident "inheritable"
+    result[0][0][1].add ident "pClass"
 
 
 proc defConstructor(
@@ -72,10 +111,21 @@ proc defConstructor(
 
 proc toInterface*(self: DistinctState): IState {.compileTime.} =
   result = (
+    defClass: (info: ClassInfo) => self.defClass(info),
     defConstructor:
     (info: ClassInfo, partOfCtor: NimNode, argsList: seq[NimNode]) =>
       self.defConstructor(info, partOfCtor, argsList)
   )
+
+
+proc defClass(
+    self: AliasState,
+    info: ClassInfo
+): NimNode {.compileTime.} =
+  result = getAst defAlias(info.name, info.base)
+  if info.isPub:
+    result[0][0] = newPostfix(result[0][0])
+  result[0][0] = newPragmaExpr(result[0][0], "pClass")
 
 
 proc defConstructor(
@@ -89,6 +139,7 @@ proc defConstructor(
 
 proc toInterface*(self: AliasState): IState {.compileTime.} =
   result = (
+    defClass: (info: ClassInfo) => self.defClass(info),
     defConstructor:
     (info: ClassInfo, partOfCtor: NimNode, argsList: seq[NimNode]) =>
       self.defConstructor(info, partOfCtor, argsList)

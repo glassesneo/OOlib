@@ -1,5 +1,6 @@
 import macros
-import util, tmpl
+import util
+
 
 type
   ClassKind* = enum
@@ -164,56 +165,6 @@ proc assistWithDef*(
   constructor
     .addSignatures(info, args)
     .insertBody(args)
-
-
-func defObj*(info): NimNode {.compileTime.} =
-  result = getAst defObj(info.name)
-  if info.isPub:
-    result[0][0] = newPostfix(result[0][0])
-  if "open" in info.pragmas:
-    result[0][2][0][1] = nnkOfInherit.newTree ident"RootObj"
-  result[0][0] = newPragmaExpr(result[0][0], "pClass")
-
-
-func defObjWithBase*(info): NimNode {.compileTime.} =
-  result = getAst defObjWithBase(info.name, info.base)
-  if info.isPub:
-    result[0][0] = newPostfix(result[0][0])
-  result[0][0] = newPragmaExpr(result[0][0], "pClass")
-
-
-func defDistinct*(info): NimNode {.compileTime.} =
-  result = getAst defDistinct(info.name, info.base)
-  if info.isPub:
-    result[0][0][0] = newPostfix(result[0][0][0])
-  if "open" in info.pragmas:
-    # replace {.final.} with {.inheritable.}
-    result[0][0][1][0] = ident "inheritable"
-    result[0][0][1].add ident "pClass"
-
-
-func defAlias*(info): NimNode {.compileTime.} =
-  result = getAst defAlias(info.name, info.base)
-  if info.isPub:
-    result[0][0] = newPostfix(result[0][0])
-  result[0][0] = newPragmaExpr(result[0][0], "pClass")
-
-
-func getAstOfClassDef(info: ClassInfo): NimNode {.compileTime.} =
-  result =
-    case info.kind
-    of Normal:
-      info.defObj()
-    of Inheritance:
-      info.defObjWithBase()
-    of Distinct:
-      info.defDistinct()
-    of Alias:
-      info.defAlias()
-
-
-func defClass*(info: ClassInfo): NimNode {.compileTime.} =
-  newStmtList getAstOfClassDef(info)
 
 
 template defNew*(info; args: seq[NimNode]): NimNode =

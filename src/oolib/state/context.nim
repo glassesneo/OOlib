@@ -12,6 +12,10 @@ proc newContext*(state: IState): Context {.compileTime.} =
   Context(state: state)
 
 
+proc defClass*(self: Context, info: ClassInfo): NimNode {.compileTime.} =
+  newStmtList self.state.defClass(info)
+
+
 proc defConstructor*(
     self: Context,
     info: ClassInfo,
