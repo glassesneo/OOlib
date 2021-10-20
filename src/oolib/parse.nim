@@ -13,9 +13,9 @@ proc parseVar(node; argsList; info) {.compileTime.} =
   ## `node` has to be `nnkVarSection`.
   case info.kind
   of Distinct:
-    error "A distinct type cannot have variables", node
+    error "Distinct type cannot have variables", node
   of Alias:
-    error "A type alias cannot have variables", node
+    error "Type alias cannot have variables", node
   else: discard
   for n in node:
     if "noNewDef" in info.pragmas and n.hasDefault:
