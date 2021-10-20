@@ -167,7 +167,7 @@ proc assistWithDef*(
     .insertBody(args)
 
 
-template defNew*(info; args: seq[NimNode]): NimNode =
+proc defNew*(info; args: seq[NimNode]): NimNode =
   var
     name = ident "new"&strVal(info.name)
     params = info.name&args
@@ -175,7 +175,8 @@ template defNew*(info; args: seq[NimNode]): NimNode =
       info.name,
       args.decomposeDefsIntoVars()
     )
-  if info.isPub:
-    newProc(name, params, body).markWithAsterisk()
-  else:
-    newProc(name, params, body)
+  result =
+    if info.isPub:
+      newProc(name, params, body).markWithAsterisk()
+    else:
+      newProc(name, params, body)

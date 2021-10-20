@@ -33,14 +33,14 @@ proc defConstructor(
     partOfCtor: NimNode,
     argsList: seq[NimNode]
 ): NimNode {.compileTime.} =
-  return
-    if not partOfCtor.isEmpty:
+  result =
+    if partOfCtor.isEmpty:
+      info.defNew(argsList.map rmAsteriskFromIdent)
+    else:
       partOfCtor.assistWithDef(
         info,
         argsList.filterIt(it.hasDefault).map rmAsteriskFromIdent
       )
-    else:
-      info.defNew(argsList.map rmAsteriskFromIdent)
 
 
 proc toInterface*(self: NormalState): IState {.compileTime.} =
