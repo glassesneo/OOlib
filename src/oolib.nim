@@ -1,5 +1,5 @@
-import macros, sequtils
-import oolib / [sub, util, classutil, parse]
+import macros
+import oolib / [sub, util, classutil]
 import oolib / state / [states, context]
 export optBase, pClass
 
@@ -13,15 +13,15 @@ macro class*(
   result = context.defClass(info)
   block:
     let
-      (classBody, argsList, constsList, partOfCtor) = parseBody(body, info)
-    result.add classBody.copy()
-    let ctorNode = context.defConstructor(info, partOfCtor, argsList)
+      members = parseBody(body, info)
+    result.add members.body.copy()
+    let ctorNode = context.defConstructor(info, members)
     if not ctorNode.isEmpty:
       result.insertIn1st ctorNode
-    for c in constsList:
+    for c in members.constsList:
       result.insertIn1st genConstant(info.name.strVal, c)
     if info.kind in {Normal, Inheritance}:
-      result[0][0][2][0][2] = argsList.map(delDefaultValue).toRecList()
+      result[0][0][2][0][2] = members.argsListWithoutDefault().toRecList()
 
 
 proc isClass*(T: typedesc): bool =

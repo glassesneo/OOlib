@@ -1,4 +1,4 @@
-import macros
+import macros, sequtils
 import util
 
 
@@ -15,9 +15,15 @@ type
     kind: ClassKind
     name, base: NimNode
 
+  ClassMembers* = tuple
+    body, ctorBase: NimNode
+    argsList, constsList: seq[NimNode]
+
+
 using
   node, constructor: NimNode
   info: ClassInfo
+  members: ClassMembers
   isPub: bool
 
 
@@ -138,6 +144,53 @@ proc parseHead*(head: NimNode): ClassInfo {.compileTime.} =
     error "Unsupported syntax", head
   else:
     error "Too many arguments", head
+
+
+proc parseBody*(body: NimNode; info): ClassMembers {.compileTime.} =
+  result.body = newStmtList()
+  result.ctorBase = newEmptyNode()
+  for node in body:
+    case node.kind
+    of nnkVarSection:
+      case info.kind
+      of Distinct:
+        error "Distinct type cannot have variables", node
+      of Alias:
+        error "Type alias cannot have variables", node
+      else: discard
+      for n in node:
+        if "noNewDef" in info.pragmas and n.hasDefault:
+          error "default values cannot be used with {.noNewDef.}", n
+        n.inferValType()
+        result.argsList.add n
+    of nnkConstSection:
+      for n in node:
+        n.inferValType()
+        if not n.hasDefault:
+          error "A constant must have a value", node
+        result.constsList.add n
+    of nnkProcDef:
+      if node.isConstructor:
+        if result.ctorBase.isEmpty:
+          result.ctorBase = node
+        else:
+          error "Constructor already exists", node
+      else:
+        result.body.add node.insertSelf(info.name)
+    of nnkMethodDef:
+      if info.kind == Inheritance:
+        node.body = replaceSuper(node.body)
+        result.body.add node.insertSelf(info.name).insertSuperStmt(info.base)
+        continue
+      result.body.add node.insertSelf(info.name)
+    of nnkFuncDef, nnkIteratorDef, nnkConverterDef, nnkTemplateDef:
+      result.body.add node.insertSelf(info.name)
+    else:
+      discard
+
+
+func argsListWithoutDefault*(members): seq[NimNode] =
+  members.argsList.map delDefaultValue
 
 
 proc addSignatures(

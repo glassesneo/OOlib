@@ -30,16 +30,15 @@ proc defClass(
 proc defConstructor(
     self: NormalState,
     info: ClassInfo,
-    partOfCtor: NimNode,
-    argsList: seq[NimNode]
+    members: ClassMembers
 ): NimNode {.compileTime.} =
   result =
-    if partOfCtor.isEmpty:
-      info.defNew(argsList.map rmAsteriskFromIdent)
+    if members.ctorBase.isEmpty:
+      info.defNew(members.argsList.map rmAsteriskFromIdent)
     else:
-      partOfCtor.assistWithDef(
+      members.ctorBase.assistWithDef(
         info,
-        argsList.filterIt(it.hasDefault).map rmAsteriskFromIdent
+        members.argsList.filterIt(it.hasDefault).map rmAsteriskFromIdent
       )
 
 
@@ -47,8 +46,8 @@ proc toInterface*(self: NormalState): IState {.compileTime.} =
   result = (
     defClass: (info: ClassInfo) => self.defClass(info),
     defConstructor:
-    (info: ClassInfo, partOfCtor: NimNode, argsList: seq[NimNode]) =>
-      self.defConstructor(info, partOfCtor, argsList)
+    (info: ClassInfo, members: ClassMembers) =>
+      self.defConstructor(info, members)
   )
 
 
@@ -65,16 +64,15 @@ proc defClass(
 proc defConstructor(
     self: InheritanceState,
     info: ClassInfo,
-    partOfCtor: NimNode,
-    argsList: seq[NimNode]
+    members: ClassMembers
 ): NimNode {.compileTime.} =
   return
-    if partOfCtor.isEmpty:
+    if members.ctorBase.isEmpty:
       newEmptyNode()
     else:
-      partOfCtor.assistWithDef(
+      members.ctorBase.assistWithDef(
         info,
-        argsList.filterIt(it.hasDefault).map rmAsteriskFromIdent
+        members.argsList.filterIt(it.hasDefault).map rmAsteriskFromIdent
       )
 
 
@@ -82,8 +80,8 @@ proc toInterface*(self: InheritanceState): IState {.compileTime.} =
   result = (
     defClass: (info: ClassInfo) => self.defClass(info),
     defConstructor:
-    (info: ClassInfo, partOfCtor: NimNode, argsList: seq[NimNode]) =>
-      self.defConstructor(info, partOfCtor, argsList)
+    (info: ClassInfo, members: ClassMembers) =>
+      self.defConstructor(info, members)
   )
 
 
@@ -103,8 +101,7 @@ proc defClass(
 proc defConstructor(
     self: DistinctState,
     info: ClassInfo,
-    partOfCtor: NimNode,
-    argsList: seq[NimNode]
+    members: ClassMembers
 ): NimNode {.compileTime.} =
   return newEmptyNode()
 
@@ -113,8 +110,8 @@ proc toInterface*(self: DistinctState): IState {.compileTime.} =
   result = (
     defClass: (info: ClassInfo) => self.defClass(info),
     defConstructor:
-    (info: ClassInfo, partOfCtor: NimNode, argsList: seq[NimNode]) =>
-      self.defConstructor(info, partOfCtor, argsList)
+    (info: ClassInfo, members: ClassMembers) =>
+      self.defConstructor(info, members)
   )
 
 
@@ -131,8 +128,7 @@ proc defClass(
 proc defConstructor(
     self: AliasState,
     info: ClassInfo,
-    partOfCtor: NimNode,
-    argsList: seq[NimNode]
+    members: ClassMembers
 ): NimNode {.compileTime.} =
   return newEmptyNode()
 
@@ -141,8 +137,8 @@ proc toInterface*(self: AliasState): IState {.compileTime.} =
   result = (
     defClass: (info: ClassInfo) => self.defClass(info),
     defConstructor:
-    (info: ClassInfo, partOfCtor: NimNode, argsList: seq[NimNode]) =>
-      self.defConstructor(info, partOfCtor, argsList)
+    (info: ClassInfo, members: ClassMembers) =>
+      self.defConstructor(info, members)
   )
 
 
