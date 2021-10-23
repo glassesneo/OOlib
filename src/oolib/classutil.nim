@@ -37,7 +37,7 @@ func newClassInfo(
   )
 
 
-proc pickStatus(node; isPub): ClassInfo {.compileTime.} =
+proc pickState(node; isPub): ClassInfo {.compileTime.} =
   case node.kind
   of nnkIdent:
     result = newClassInfo(
@@ -115,7 +115,7 @@ proc parseHead*(head: NimNode): ClassInfo {.compileTime.} =
   of 1:
     error "Unsupported syntax", head
   of 2:
-    result = pickStatus(
+    result = pickState(
       if head.isPub: head[1] else: head,
       head.isPub
     )
