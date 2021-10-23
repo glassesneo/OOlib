@@ -10,7 +10,7 @@
 
 
 ## 🗺Overview
-OOlib is a nimble package which provides user-defined types, procedures, etc...
+OOlib is a nimble package for object oriented programming.
 
 
 ## 📜Usage
