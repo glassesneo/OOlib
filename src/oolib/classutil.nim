@@ -1,5 +1,6 @@
-import macros
-import util, tmpl
+import macros, sequtils
+import util
+
 
 type
   ClassKind* = enum
@@ -14,9 +15,15 @@ type
     kind: ClassKind
     name, base: NimNode
 
+  ClassMembers* = tuple
+    body, ctorBase: NimNode
+    argsList, constsList: seq[NimNode]
+
+
 using
   node, constructor: NimNode
   info: ClassInfo
+  members: ClassMembers
   isPub: bool
 
 
@@ -36,7 +43,7 @@ func newClassInfo(
   )
 
 
-proc pickStatus(node; isPub): ClassInfo {.compileTime.} =
+proc pickState(node; isPub): ClassInfo {.compileTime.} =
   case node.kind
   of nnkIdent:
     result = newClassInfo(
@@ -114,7 +121,7 @@ proc parseHead*(head: NimNode): ClassInfo {.compileTime.} =
   of 1:
     error "Unsupported syntax", head
   of 2:
-    result = pickStatus(
+    result = pickState(
       if head.isPub: head[1] else: head,
       head.isPub
     )
@@ -137,6 +144,53 @@ proc parseHead*(head: NimNode): ClassInfo {.compileTime.} =
     error "Unsupported syntax", head
   else:
     error "Too many arguments", head
+
+
+proc parseBody*(body: NimNode; info): ClassMembers {.compileTime.} =
+  result.body = newStmtList()
+  result.ctorBase = newEmptyNode()
+  for node in body:
+    case node.kind
+    of nnkVarSection:
+      case info.kind
+      of Distinct:
+        error "Distinct type cannot have variables", node
+      of Alias:
+        error "Type alias cannot have variables", node
+      else: discard
+      for n in node:
+        if "noNewDef" in info.pragmas and n.hasDefault:
+          error "default values cannot be used with {.noNewDef.}", n
+        n.inferValType()
+        result.argsList.add n
+    of nnkConstSection:
+      for n in node:
+        n.inferValType()
+        if not n.hasDefault:
+          error "A constant must have a value", node
+        result.constsList.add n
+    of nnkProcDef:
+      if node.isConstructor:
+        if result.ctorBase.isEmpty:
+          result.ctorBase = node
+        else:
+          error "Constructor already exists", node
+      else:
+        result.body.add node.insertSelf(info.name)
+    of nnkMethodDef:
+      if info.kind == Inheritance:
+        node.body = replaceSuper(node.body)
+        result.body.add node.insertSelf(info.name).insertSuperStmt(info.base)
+        continue
+      result.body.add node.insertSelf(info.name)
+    of nnkFuncDef, nnkIteratorDef, nnkConverterDef, nnkTemplateDef:
+      result.body.add node.insertSelf(info.name)
+    else:
+      discard
+
+
+func argsListWithoutDefault*(members): seq[NimNode] =
+  members.argsList.map delDefaultValue
 
 
 proc addSignatures(
@@ -166,57 +220,7 @@ proc assistWithDef*(
     .insertBody(args)
 
 
-func defObj*(info): NimNode {.compileTime.} =
-  result = getAst defObj(info.name)
-  if info.isPub:
-    result[0][0] = newPostfix(result[0][0])
-  if "open" in info.pragmas:
-    result[0][2][0][1] = nnkOfInherit.newTree ident"RootObj"
-  result[0][0] = newPragmaExpr(result[0][0], "pClass")
-
-
-func defObjWithBase*(info): NimNode {.compileTime.} =
-  result = getAst defObjWithBase(info.name, info.base)
-  if info.isPub:
-    result[0][0] = newPostfix(result[0][0])
-  result[0][0] = newPragmaExpr(result[0][0], "pClass")
-
-
-func defDistinct*(info): NimNode {.compileTime.} =
-  result = getAst defDistinct(info.name, info.base)
-  if info.isPub:
-    result[0][0][0] = newPostfix(result[0][0][0])
-  if "open" in info.pragmas:
-    # replace {.final.} with {.inheritable.}
-    result[0][0][1][0] = ident "inheritable"
-    result[0][0][1].add ident "pClass"
-
-
-func defAlias*(info): NimNode {.compileTime.} =
-  result = getAst defAlias(info.name, info.base)
-  if info.isPub:
-    result[0][0] = newPostfix(result[0][0])
-  result[0][0] = newPragmaExpr(result[0][0], "pClass")
-
-
-func getAstOfClassDef(info: ClassInfo): NimNode {.compileTime.} =
-  result =
-    case info.kind
-    of Normal:
-      info.defObj()
-    of Inheritance:
-      info.defObjWithBase()
-    of Distinct:
-      info.defDistinct()
-    of Alias:
-      info.defAlias()
-
-
-func defClass*(info: ClassInfo): NimNode {.compileTime.} =
-  newStmtList getAstOfClassDef(info)
-
-
-template defNew*(info; args: seq[NimNode]): NimNode =
+proc defNew*(info; args: seq[NimNode]): NimNode =
   var
     name = ident "new"&strVal(info.name)
     params = info.name&args
@@ -224,7 +228,8 @@ template defNew*(info; args: seq[NimNode]): NimNode =
       info.name,
       args.decomposeDefsIntoVars()
     )
-  if info.isPub:
-    newProc(name, params, body).markWithAsterisk()
-  else:
-    newProc(name, params, body)
+  result =
+    if info.isPub:
+      newProc(name, params, body).markWithAsterisk()
+    else:
+      newProc(name, params, body)
