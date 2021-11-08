@@ -114,7 +114,7 @@ proc pickState(node; isPub): ClassInfo {.compileTime.} =
     error "Unsupported syntax", node
 
 
-proc parseHead*(head: NimNode): ClassInfo {.compileTime.} =
+proc parseClassHead*(head: NimNode): ClassInfo {.compileTime.} =
   case head.len
   of 0:
     result = newClassInfo(name = head)
@@ -146,7 +146,7 @@ proc parseHead*(head: NimNode): ClassInfo {.compileTime.} =
     error "Too many arguments", head
 
 
-proc parseBody*(body: NimNode; info): ClassMembers {.compileTime.} =
+proc parseClassBody*(body: NimNode; info): ClassMembers {.compileTime.} =
   result.body = newStmtList()
   result.ctorBase = newEmptyNode()
   for node in body:

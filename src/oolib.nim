@@ -8,20 +8,19 @@ macro class*(
     body: untyped{nkStmtList}
 ): untyped =
   let
-    info = parseHead(head)
+    info = parseClassHead(head)
     context = newContext(newState(info))
   result = context.defClass(info)
-  block:
-    let
-      members = parseBody(body, info)
-    result.add members.body.copy()
-    let ctorNode = context.defConstructor(info, members)
-    if not ctorNode.isEmpty:
-      result.insertIn1st ctorNode
-    for c in members.constsList:
-      result.insertIn1st genConstant(info.name.strVal, c)
-    if info.kind in {Normal, Inheritance}:
-      result[0][0][2][0][2] = members.argsListWithoutDefault().toRecList()
+  let
+    members = parseClassBody(body, info)
+  result.add members.body.copy()
+  let ctorNode = context.defConstructor(info, members)
+  if not ctorNode.isEmpty:
+    result.insertIn1st ctorNode
+  for c in members.constsList:
+    result.insertIn1st genConstant(info.name.strVal, c)
+  if info.kind in {Normal, Inheritance}:
+    result[0][0][2][0][2] = members.argsListWithoutDefault().toRecList()
 
 
 proc isClass*(T: typedesc): bool =
