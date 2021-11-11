@@ -1,5 +1,5 @@
 import macros
-import oolib / [sub, util, classutil]
+import oolib / [sub, util, classes, protocols]
 import oolib / state / [states, context]
 export optBase, pClass
 
@@ -19,7 +19,7 @@ macro class*(
     result.insertIn1st ctorNode
   for c in members.constsList:
     result.insertIn1st genConstant(info.name.strVal, c)
-  if info.kind in {Normal, Inheritance}:
+  if info.kind in {ClassKind.Normal, ClassKind.Inheritance}:
     result[0][0][2][0][2] = members.argsListWithoutDefault().toRecList()
 
 
@@ -31,3 +31,10 @@ proc isClass*(T: typedesc): bool =
 proc isClass*[T](instance: T): bool =
   ## Is an alias for `isClass(T)`.
   T.isClass()
+
+
+macro protocol*(head: untyped, body: untyped): untyped =
+  let
+    info = parseProtocolHead(head)
+    members = parseProtocolBody(body)
+  result = defProtocol(info, members)

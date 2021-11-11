@@ -1,6 +1,6 @@
 import sequtils, macros, sugar
 import .. / util
-import .. / classutil
+import .. / classes
 import .. / tmpl
 import state_interface
 

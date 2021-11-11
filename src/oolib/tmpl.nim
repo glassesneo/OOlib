@@ -14,5 +14,9 @@ template defAlias*(className, baseName) =
   type className = baseName
 
 
+template defProtocol*(protocolName) =
+  type protocolName = tuple
+
+
 template asgnWith*(name) =
   self.name = name
