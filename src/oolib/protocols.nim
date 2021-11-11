@@ -54,8 +54,18 @@ proc parseProtocolBody*(body: NimNode): ProtocolMembers =
       error "Unsupported syntax", node
 
 
-func toTupleMember(node: NimNode): NimNode =
+func toTupleMemberProc(node: NimNode): NimNode =
   newIdentDefs node.name, nnkProcTy.newTree(node.params, node[4])
+
+
+func toTupleMemberFunc(node: NimNode): NimNode =
+  newIdentDefs node.name, nnkProcTy.newTree(
+    node.params,
+    if node[4].kind == nnkEmpty:
+      newEmptyNode()
+    else:
+      node[4].add ident"noSideEffect"
+  )
 
 
 proc defProtocol*(info: ProtocolInfo, members: ProtocolMembers): NimNode =
@@ -63,6 +73,6 @@ proc defProtocol*(info: ProtocolInfo, members: ProtocolMembers): NimNode =
   if info.isPub:
     result[0][0][0] = newPostfix(result[0][0])
   for p in members.procs:
-    result[0][0][2].add p.toTupleMember()
+    result[0][0][2].add p.toTupleMemberProc()
   for f in members.funcs:
-    result[0][0][2].add f.toTupleMember()
+    result[0][0][2].add f.toTupleMemberFunc()
