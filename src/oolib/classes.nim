@@ -8,6 +8,7 @@ type
     Inheritance
     Distinct
     Alias
+    Implementation
 
   ClassInfo* = tuple
     isPub: bool
@@ -110,6 +111,15 @@ proc pickState(node; isPub): ClassInfo {.compileTime.} =
       pragmas = node[1].toSeq(),
       name = node[0]
     )
+  of nnkCommand:
+    if node[1][0].eqIdent"impl":
+      return newClassInfo(
+        isPub = isPub,
+        kind = Implementation,
+        name = node[0],
+        base = node[1][1]
+      )
+    error "Unsupported syntax", node
   else:
     error "Unsupported syntax", node
 

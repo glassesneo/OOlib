@@ -12,8 +12,7 @@ type
     name: NimNode
 
   ProtocolMembers* = tuple
-    procs, funcs: seq[NimNode]
-
+    argsList, procs, funcs: seq[NimNode]
 
 
 proc newProtocolInfo(
@@ -46,6 +45,9 @@ proc parseProtocolHead*(head: NimNode): ProtocolInfo =
 proc parseProtocolBody*(body: NimNode): ProtocolMembers =
   for node in body:
     case node.kind
+    of nnkVarSection:
+      for n in node:
+        result.argsList.add n
     of nnkProcDef:
       result.procs.add node
     of nnkFuncDef:
@@ -72,6 +74,8 @@ proc defProtocol*(info: ProtocolInfo, members: ProtocolMembers): NimNode =
   result = newStmtList getAst defProtocol(info.name)
   if info.isPub:
     result[0][0][0] = newPostfix(result[0][0])
+  for v in members.argsList:
+    result[0][0][2].add v
   for p in members.procs:
     result[0][0][2].add p.toTupleMemberProc()
   for f in members.funcs:

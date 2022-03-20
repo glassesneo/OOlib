@@ -1,5 +1,5 @@
 {.experimental: "strictFuncs".}
-import macros
+import macros, sequtils
 import tmpl
 
 
@@ -70,6 +70,12 @@ func insertSelf*(theProc; typeName): NimNode {.compileTime.} =
   result.params.insertIn1st newIdentDefs(ident "self", typeName)
 
 
+func removeSelf(theProc): NimNode {.compileTime.} =
+  ## Removes `self: typeName` from the 1st of theProc.params.
+  result = theProc.copy
+  result.params.del(1, 1)
+
+
 proc replaceSuper*(node): NimNode =
   ## Replaces `super.f()` with `procCall Base(self).f()`.
   result = node
@@ -123,6 +129,21 @@ func toSeq*(node: NimNode): seq[string] {.compileTime.} =
   node.expectKind nnkPragma
   for s in node:
     result.add s.strVal
+
+
+func newVarsColonExpr*(v: NimNode): NimNode {.compileTime.} =
+  newColonExpr(v, newDotExpr(ident"self", v))
+
+
+func newLambdaColonExpr*(theProc: NimNode): NimNode {.compileTime.} =
+  ## Generates `name: proc() = self.name()`.
+  var lambdaProc = theProc.removeSelf()
+  let name = lambdaProc[0]
+  lambdaProc[0] = newEmptyNode()
+  lambdaProc.body = newDotExpr(ident"self", name).newCall(
+    lambdaProc.params[1..^1].mapIt(it[0])
+  )
+  result = newColonExpr(name, lambdaProc)
 
 
 func rmAsterisk(node): NimNode {.compileTime.} =

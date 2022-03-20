@@ -14,6 +14,8 @@ type
 
   AliasState* = ref object
 
+  ImplementationState* = ref object
+
 
 proc defClass(
     self: NormalState,
@@ -142,9 +144,44 @@ proc toInterface*(self: AliasState): IState {.compileTime.} =
   )
 
 
+proc defClass(
+    self: ImplementationState,
+    info: ClassInfo
+): NimNode {.compileTime.} =
+  result = getAst defObj(info.name)
+  if info.isPub:
+    result[0][0] = newPostfix(result[0][0])
+  result[0][0] = newPragmaExpr(result[0][0], "pClass")
+
+
+proc defConstructor(
+    self: ImplementationState,
+    info: ClassInfo,
+    members: ClassMembers
+): NimNode {.compileTime.} =
+  result =
+    if members.ctorBase.isEmpty:
+      info.defNew(members.argsList.map rmAsteriskFromIdent)
+    else:
+      members.ctorBase.assistWithDef(
+        info,
+        members.argsList.filterIt(it.hasDefault).map rmAsteriskFromIdent
+      )
+
+
+proc toInterface*(self: ImplementationState): IState {.compileTime.} =
+  result = (
+    defClass: (info: ClassInfo) => self.defClass(info),
+    defConstructor:
+    (info: ClassInfo, members: ClassMembers) =>
+      self.defConstructor(info, members)
+  )
+
+
 proc newState*(info: ClassInfo): IState {.compileTime.} =
   result = case info.kind
     of Normal: NormalState().toInterface()
     of Inheritance: InheritanceState().toInterface()
     of Distinct: DistinctState().toInterface()
     of Alias: AliasState().toInterface()
+    of Implementation: ImplementationState().toInterface()
