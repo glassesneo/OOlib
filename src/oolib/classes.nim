@@ -18,7 +18,7 @@ type
 
   ClassMembers* = tuple
     body, ctorBase: NimNode
-    argsList, constsList: seq[NimNode]
+    argsList, ignoredArgsList, constsList: seq[NimNode]
 
 
 using
@@ -172,7 +172,10 @@ proc parseClassBody*(body: NimNode; info): ClassMembers {.compileTime.} =
         if "noNewDef" in info.pragmas and n.hasDefault:
           error "default values cannot be used with {.noNewDef.}", n
         n.inferValType()
-        result.argsList.add n
+        if n.hasPragma and "ignored" in n[0][1]:
+          result.ignoredArgsList.add n
+        else:
+          result.argsList.add n
     of nnkConstSection:
       for n in node:
         n.inferValType()
@@ -199,8 +202,12 @@ proc parseClassBody*(body: NimNode; info): ClassMembers {.compileTime.} =
       discard
 
 
-func argsListWithoutDefault*(members): seq[NimNode] =
-  members.argsList.map delDefaultValue
+func allArgsList*(members): seq[NimNode] {.compileTime.} =
+  members.argsList & members.ignoredArgsList
+
+
+func withoutDefault*(argsList: seq[NimNode]): seq[NimNode] =
+  argsList.map delDefaultValue
 
 
 proc addSignatures(

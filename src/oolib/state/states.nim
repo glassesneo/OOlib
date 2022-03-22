@@ -36,11 +36,11 @@ proc defConstructor(
 ): NimNode {.compileTime.} =
   result =
     if members.ctorBase.isEmpty:
-      info.defNew(members.argsList.map rmAsteriskFromIdent)
+      info.defNew(members.allArgsList.map rmAsteriskFromIdent)
     else:
       members.ctorBase.assistWithDef(
         info,
-        members.argsList.filterIt(it.hasDefault).map rmAsteriskFromIdent
+        members.allArgsList.filterIt(it.hasDefault).map rmAsteriskFromIdent
       )
 
 
@@ -74,7 +74,7 @@ proc defConstructor(
     else:
       members.ctorBase.assistWithDef(
         info,
-        members.argsList.filterIt(it.hasDefault).map rmAsteriskFromIdent
+        members.allArgsList.filterIt(it.hasDefault).map rmAsteriskFromIdent
       )
 
 
@@ -161,11 +161,11 @@ proc defConstructor(
 ): NimNode {.compileTime.} =
   result =
     if members.ctorBase.isEmpty:
-      info.defNew(members.argsList.map rmAsteriskFromIdent)
+      info.defNew(members.allArgsList.map rmAsteriskFromIdent)
     else:
       members.ctorBase.assistWithDef(
         info,
-        members.argsList.filterIt(it.hasDefault).map rmAsteriskFromIdent
+        members.allArgsList.filterIt(it.hasDefault).map rmAsteriskFromIdent
       )
 
 

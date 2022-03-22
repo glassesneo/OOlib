@@ -1,7 +1,7 @@
 import macros, sequtils
 import oolib / [sub, util, classes, protocols]
 import oolib / state / [states, context]
-export optBase, pClass
+export optBase, pClass, ignored
 
 macro class*(
     head: untyped{nkIdent | nkCommand | nkInfix | nkCall | nkPragmaExpr},
@@ -21,7 +21,7 @@ macro class*(
     result.insertIn1st genConstant(info.name.strVal, c)
   if info.kind in {ClassKind.Normal, ClassKind.Inheritance,
       ClassKind.Implementation}:
-    result[0][0][2][0][2] = members.argsListWithoutDefault().toRecList()
+    result[0][0][2][0][2] = members.allArgsList.withoutDefault().toRecList()
   if info.kind == Implementation:
     result.add newProc(
       ident"toInterface",
@@ -30,11 +30,11 @@ macro class*(
         nnkReturnStmt.newNimNode.add(
           nnkTupleConstr.newNimNode.add(
             members.argsList.decomposeDefsIntoVars().map newVarsColonExpr
-        ).add(
+      ).add(
           members.body.filterIt(
             it.kind in {nnkProcDef, nnkFuncDef, nnkMethodDef, nnkIteratorDef}
-          ).map newLambdaColonExpr
-        )
+        ).filterIt("ignored" notin it[4]).map newLambdaColonExpr
+      )
       )
       )
     ).insertSelf(info.name)

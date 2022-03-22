@@ -53,6 +53,11 @@ func hasDefault*(node): bool {.compileTime.} =
   not node.last.isEmpty
 
 
+func hasPragma*(node): bool {.compileTime.} =
+  node.expectKind {nnkIdentDefs, nnkConstDef}
+  node[0].kind == nnkPragmaExpr
+
+
 func inferValType*(node: NimNode) {.compileTime.} =
   ## Infers type from default if a type annotation is empty.
   ## `node` has to be `nnkIdentDefs` or `nnkConstDef`.
@@ -162,6 +167,9 @@ proc rmAsteriskFromIdent*(def: NimNode): NimNode {.compileTime.} =
 func decomposeDefsIntoVars*(s: seq[NimNode]): seq[NimNode] {.compileTime.} =
   for def in s:
     for v in def[0..^3]:
+      if v.kind == nnkPragmaExpr:
+        result.add v[0]
+        continue
       result.add v
 
 
