@@ -52,6 +52,8 @@ proc parseProtocolBody*(body: NimNode): ProtocolMembers =
       result.procs.add node
     of nnkFuncDef:
       result.funcs.add node
+    of nnkDiscardStmt:
+      discard
     else:
       error "Unsupported syntax", node
 
@@ -72,11 +74,12 @@ func toTupleMemberFunc(node: NimNode): NimNode =
 
 proc defProtocol*(info: ProtocolInfo, members: ProtocolMembers): NimNode =
   result = newStmtList getAst defProtocol(info.name)
-  if info.isPub:
-    result[0][0][0] = newPostfix(result[0][0])
   for v in members.argsList:
     result[0][0][2].add v
   for p in members.procs:
     result[0][0][2].add p.toTupleMemberProc()
   for f in members.funcs:
     result[0][0][2].add f.toTupleMemberFunc()
+  if info.isPub:
+    result[0][0][0] = newPostfix(result[0][0][0])
+  result[0][0][0] = newPragmaExpr(result[0][0][0], "pProtocol")

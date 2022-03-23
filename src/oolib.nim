@@ -1,7 +1,7 @@
 import macros, sequtils
 import oolib / [sub, util, classes, protocols]
 import oolib / state / [states, context]
-export optBase, pClass, ignored
+export optBase, pClass, pProtocol, ignored
 
 macro class*(
     head: untyped{nkIdent | nkCommand | nkInfix | nkCall | nkPragmaExpr},
@@ -55,3 +55,13 @@ macro protocol*(head: untyped, body: untyped): untyped =
     info = parseProtocolHead(head)
     members = parseProtocolBody(body)
   result = defProtocol(info, members)
+
+
+proc isProtocol*(T: typedesc): bool =
+  ## Returns whether `T` is protocol or not.
+  T.hasCustomPragma(pProtocol)
+
+
+proc isProtocol*[T](instance: T): bool =
+  ## Is an alias for `isProtocol(T)`.
+  T.isProtocol()
