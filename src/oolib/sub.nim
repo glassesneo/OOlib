@@ -5,6 +5,14 @@ template pClass* {.pragma.}
   ## Is used as pragma.
 
 
+template pProtocol* {.pragma.}
+  ## Is used as pragma.
+
+
+template ignored* {.pragma.}
+  ## Is used as pragma.
+
+
 macro optBase*(p: untyped): untyped =
   ## Decides whether to include {.base.} or not for use in auto generated methods
   let

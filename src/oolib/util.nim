@@ -1,5 +1,5 @@
 {.experimental: "strictFuncs".}
-import macros
+import macros, sequtils
 import tmpl
 
 
@@ -53,6 +53,11 @@ func hasDefault*(node): bool {.compileTime.} =
   not node.last.isEmpty
 
 
+func hasPragma*(node): bool {.compileTime.} =
+  node.expectKind {nnkIdentDefs, nnkConstDef}
+  node[0].kind == nnkPragmaExpr
+
+
 func inferValType*(node: NimNode) {.compileTime.} =
   ## Infers type from default if a type annotation is empty.
   ## `node` has to be `nnkIdentDefs` or `nnkConstDef`.
@@ -68,6 +73,12 @@ func insertSelf*(theProc; typeName): NimNode {.compileTime.} =
   ## Inserts `self: typeName` in the 1st of theProc.params.
   result = theProc
   result.params.insertIn1st newIdentDefs(ident "self", typeName)
+
+
+func removeSelf(theProc): NimNode {.compileTime.} =
+  ## Removes `self: typeName` from the 1st of theProc.params.
+  result = theProc.copy
+  result.params.del(1, 1)
 
 
 proc replaceSuper*(node): NimNode =
@@ -125,6 +136,21 @@ func toSeq*(node: NimNode): seq[string] {.compileTime.} =
     result.add s.strVal
 
 
+func newVarsColonExpr*(v: NimNode): NimNode {.compileTime.} =
+  newColonExpr(v, newDotExpr(ident"self", v))
+
+
+func newLambdaColonExpr*(theProc: NimNode): NimNode {.compileTime.} =
+  ## Generates `name: proc() = self.name()`.
+  var lambdaProc = theProc.removeSelf()
+  let name = lambdaProc[0]
+  lambdaProc[0] = newEmptyNode()
+  lambdaProc.body = newDotExpr(ident"self", name).newCall(
+    lambdaProc.params[1..^1].mapIt(it[0])
+  )
+  result = newColonExpr(name, lambdaProc)
+
+
 func rmAsterisk(node): NimNode {.compileTime.} =
   result = node
   if node.hasAsterisk:
@@ -141,6 +167,9 @@ proc rmAsteriskFromIdent*(def: NimNode): NimNode {.compileTime.} =
 func decomposeDefsIntoVars*(s: seq[NimNode]): seq[NimNode] {.compileTime.} =
   for def in s:
     for v in def[0..^3]:
+      if v.kind == nnkPragmaExpr:
+        result.add v[0]
+        continue
       result.add v
 
 

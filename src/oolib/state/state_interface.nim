@@ -1,5 +1,5 @@
 import sugar
-import .. / classutil
+import .. / classes
 
 
 type

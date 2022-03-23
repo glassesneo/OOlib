@@ -8,6 +8,7 @@ type
     Inheritance
     Distinct
     Alias
+    Implementation
 
   ClassInfo* = tuple
     isPub: bool
@@ -17,7 +18,7 @@ type
 
   ClassMembers* = tuple
     body, ctorBase: NimNode
-    argsList, constsList: seq[NimNode]
+    argsList, ignoredArgsList, constsList: seq[NimNode]
 
 
 using
@@ -110,11 +111,20 @@ proc pickState(node; isPub): ClassInfo {.compileTime.} =
       pragmas = node[1].toSeq(),
       name = node[0]
     )
+  of nnkCommand:
+    if node[1][0].eqIdent"impl":
+      return newClassInfo(
+        isPub = isPub,
+        kind = Implementation,
+        name = node[0],
+        base = node[1][1]
+      )
+    error "Unsupported syntax", node
   else:
     error "Unsupported syntax", node
 
 
-proc parseHead*(head: NimNode): ClassInfo {.compileTime.} =
+proc parseClassHead*(head: NimNode): ClassInfo {.compileTime.} =
   case head.len
   of 0:
     result = newClassInfo(name = head)
@@ -146,7 +156,7 @@ proc parseHead*(head: NimNode): ClassInfo {.compileTime.} =
     error "Too many arguments", head
 
 
-proc parseBody*(body: NimNode; info): ClassMembers {.compileTime.} =
+proc parseClassBody*(body: NimNode; info): ClassMembers {.compileTime.} =
   result.body = newStmtList()
   result.ctorBase = newEmptyNode()
   for node in body:
@@ -162,7 +172,10 @@ proc parseBody*(body: NimNode; info): ClassMembers {.compileTime.} =
         if "noNewDef" in info.pragmas and n.hasDefault:
           error "default values cannot be used with {.noNewDef.}", n
         n.inferValType()
-        result.argsList.add n
+        if n.hasPragma and "ignored" in n[0][1]:
+          result.ignoredArgsList.add n
+        else:
+          result.argsList.add n
     of nnkConstSection:
       for n in node:
         n.inferValType()
@@ -189,8 +202,12 @@ proc parseBody*(body: NimNode; info): ClassMembers {.compileTime.} =
       discard
 
 
-func argsListWithoutDefault*(members): seq[NimNode] =
-  members.argsList.map delDefaultValue
+func allArgsList*(members): seq[NimNode] {.compileTime.} =
+  members.argsList & members.ignoredArgsList
+
+
+func withoutDefault*(argsList: seq[NimNode]): seq[NimNode] =
+  argsList.map delDefaultValue
 
 
 proc addSignatures(
