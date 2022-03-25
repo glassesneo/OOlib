@@ -18,9 +18,25 @@ proc defClass*(self: Context, info: ClassInfo): NimNode {.compileTime.} =
 
 proc defConstructor*(
     self: Context,
+    theClass: NimNode,
     info: ClassInfo,
     members: ClassMembers
-): NimNode {.compileTime.} =
-  if "noNewDef" in info.pragmas:
-    return newEmptyNode()
-  self.state.defConstructor(info, members)
+) {.compileTime.} =
+  self.state.defConstructor(theClass, info, members)
+
+
+proc defMemberVars*(
+    self: Context,
+    theClass: NimNode,
+    members: ClassMembers
+) {.compileTime.} =
+  self.state.defMemberVars(theClass, members)
+
+
+proc defMemberFuncs*(
+    self: Context,
+    theClass: NimNode,
+    info: ClassInfo,
+    members: ClassMembers
+) {.compileTime.} =
+  self.state.defMemberFuncs(theClass, info, members)

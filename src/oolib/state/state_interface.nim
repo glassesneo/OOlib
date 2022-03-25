@@ -5,6 +5,12 @@ import .. / classes
 type
   IState* = tuple
     defClass: (info: ClassInfo) -> NimNode
-    defConstructor: (
-      info: ClassInfo, members: ClassMembers
-    ) -> NimNode
+    defConstructor: proc(
+      theClass: NimNode, info: ClassInfo, members: ClassMembers
+    )
+    defMemberVars: proc(
+      theClass: NimNode, members: ClassMembers
+    )
+    defMemberFuncs: proc(
+      theClass: NimNode, info: ClassInfo, members: ClassMembers
+    )

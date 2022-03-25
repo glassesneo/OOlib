@@ -1,5 +1,5 @@
 import macros, sequtils
-import util
+import util, tmpl
 
 
 type
@@ -42,6 +42,137 @@ func newClassInfo(
     name: name,
     base: base,
   )
+
+
+func isDistinct(node): bool {.compileTime.} =
+  node.kind == nnkCall and node[1].kind == nnkDistinctTy
+
+
+func isInheritance(node): bool {.compileTime.} =
+  node.kind == nnkInfix and node[0].eqIdent"of"
+
+
+func isConstructor(node): bool {.compileTime.} =
+  node[0].kind == nnkAccQuoted and node.name.eqIdent"new"
+
+
+func hasPragma(node): bool {.compileTime.} =
+  node.expectKind {nnkIdentDefs, nnkConstDef}
+  node[0].kind == nnkPragmaExpr
+
+
+func inferValType(node: NimNode) {.compileTime.} =
+  ## Infers type from default if a type annotation is empty.
+  ## `node` has to be `nnkIdentDefs` or `nnkConstDef`.
+  node.expectKind {nnkIdentDefs, nnkConstDef}
+  node[^2] = node[^2] or newCall(ident"typeof", node[^1])
+
+
+func newSuperStmt(baseName: NimNode): NimNode {.compileTime.} =
+  ## Generates `var super = Base(self)`.
+  newVarStmt ident"super", newCall(baseName, ident "self")
+
+
+func insertSuperStmt(theProc, baseName: NimNode): NimNode {.compileTime.} =
+  ## Inserts `var super = Base(self)` in the 1st line of `theProc.body`.
+  result = theProc
+  result.body.insert 0, newSuperStmt(baseName)
+
+
+func delDefaultValue(node): NimNode {.compileTime.} =
+  result = node
+  result[^1] = newEmptyNode()
+
+
+func toSeq(node: NimNode): seq[string] {.compileTime.} =
+  node.expectKind nnkPragma
+  for s in node:
+    result.add s.strVal
+
+
+func rmSelf(theProc: NimNode): NimNode {.compileTime.} =
+  ## Removes `self: typeName` from the 1st of theProc.params.
+  result = theProc.copy
+  result.params.del(1, 1)
+
+
+func newVarsColonExpr*(v: NimNode): NimNode {.compileTime.} =
+  newColonExpr(v, newDotExpr(ident"self", v))
+
+
+func newLambdaColonExpr*(theProc: NimNode): NimNode {.compileTime.} =
+  ## Generates `name: proc() = self.name()`.
+  var lambdaProc = theProc.rmSelf()
+  let name = lambdaProc[0]
+  lambdaProc[0] = newEmptyNode()
+  lambdaProc.body = newDotExpr(ident"self", name).newCall(
+    lambdaProc.params[1..^1].mapIt(it[0])
+  )
+  result = newColonExpr(name, lambdaProc)
+
+
+func isSuperFunc*(node): bool {.compileTime.} =
+  ## Returns whether struct is `super.f()` or not.
+  node.kind == nnkCall and
+  node[0].kind == nnkDotExpr and
+  node[0][0].eqIdent"super"
+
+
+proc replaceSuper*(node): NimNode =
+  ## Replaces `super.f()` with `procCall Base(self).f()`.
+  result = node
+  if node.isSuperFunc:
+    result = newTree(
+      nnkCommand,
+      ident "procCall",
+      copyNimTree(node)
+    )
+    return
+  for i, n in node:
+    result[i] = n.replaceSuper()
+
+
+func newSelfStmt(typeName: NimNode): NimNode {.compileTime.} =
+  ## Generates `var self = typeName()`.
+  newVarStmt ident"self", newCall(typeName)
+
+
+func newResultAsgn(rhs: string): NimNode {.compileTime.} =
+  newAssignment ident"result", ident rhs
+
+
+proc genNewBody(typeName: NimNode; vars: seq[
+    NimNode]): NimNode {.compileTime.} =
+  result = newStmtList newSelfStmt(typeName)
+  for v in vars:
+    result.insertIn1st getAst(asgnWith v)
+  result.add newResultAsgn"self"
+
+
+func replaceReturnTypeWith(
+    constructor,
+    typeName: NimNode
+): NimNode {.compileTime.} =
+  result = constructor
+  result.params[0] = typeName
+
+
+func insertBody(
+    constructor: NimNode;
+    vars: seq[NimNode]
+): NimNode {.compileTime.} =
+  result = constructor
+  if result.body[0].kind == nnkDiscardStmt:
+    return
+  result.body.insert 0, newSelfStmt(result.params[0])
+  for v in vars.decomposeDefsIntoVars():
+    result.body.insertIn1st getAst(asgnWith v)
+  result.body.add newResultAsgn"self"
+
+
+func markWithAsterisk(theProc: NimNode): NimNode {.compileTime.} =
+  result = theProc
+  result.name = newPostfix(theProc.name)
 
 
 proc pickState(node; isPub): ClassInfo {.compileTime.} =
@@ -208,6 +339,16 @@ func allArgsList*(members): seq[NimNode] {.compileTime.} =
 
 func withoutDefault*(argsList: seq[NimNode]): seq[NimNode] =
   argsList.map delDefaultValue
+
+
+proc insertArgs(
+    constructor: NimNode;
+    vars: seq[NimNode]
+): NimNode {.compileTime.} =
+  ## Inserts `vars` to constructor args.
+  result = constructor
+  for v in vars[0..^1]:
+    result.params.insertIn1st(v)
 
 
 proc addSignatures(
