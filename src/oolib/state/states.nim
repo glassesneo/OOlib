@@ -1,8 +1,11 @@
-import sequtils, macros, sugar
-import .. / util
-import .. / classes
-import .. / tmpl
-import state_interface
+import
+  std/macros,
+  std/sequtils,
+  std/sugar,
+  .. / util,
+  .. / classes,
+  .. / tmpl,
+  state_interface
 
 
 func hasAsterisk*(node: NimNode): bool {.compileTime.} =

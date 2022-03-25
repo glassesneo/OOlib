@@ -1,5 +1,6 @@
-import sugar
-import .. / classes
+import
+  std/sugar,
+  .. / classes
 
 
 type

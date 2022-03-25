@@ -1,4 +1,5 @@
-import macros
+import
+  std/macros
 
 
 template pClass* {.pragma.}

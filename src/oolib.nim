@@ -1,7 +1,14 @@
-import macros
-import oolib / [sub, util, classes, protocols]
-import oolib / state / [states, context]
-export optBase, pClass, pProtocol, ignored
+import
+  std/macros,
+  oolib / [sub, util, classes, protocols],
+  oolib / state / [states, context]
+
+export
+  optBase,
+  pClass,
+  pProtocol,
+  ignored
+
 
 macro class*(
     head: untyped{nkIdent | nkCommand | nkInfix | nkCall | nkPragmaExpr},

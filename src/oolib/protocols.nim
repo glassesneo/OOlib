@@ -1,5 +1,7 @@
-import macros
-import util, tmpl
+import
+  std/macros,
+  util,
+  tmpl
 
 
 type

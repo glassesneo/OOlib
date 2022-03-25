@@ -1,6 +1,7 @@
-import macros
-import .. / classes
-import state_interface
+import
+  std/macros,
+  .. / classes,
+  state_interface
 
 
 type

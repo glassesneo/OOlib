@@ -1,5 +1,6 @@
 {.experimental: "strictFuncs".}
-import macros
+import
+  std/macros
 
 
 using
