@@ -253,7 +253,7 @@ proc pickState(node; isPub): ClassInfo {.compileTime.} =
     error "Unsupported syntax", node
 
 
-proc parseClassHead*(head: NimNode): ClassInfo {.compileTime.} =
+proc getClassInfo*(head: NimNode): ClassInfo {.compileTime.} =
   case head.len
   of 0:
     result = newClassInfo(name = head)

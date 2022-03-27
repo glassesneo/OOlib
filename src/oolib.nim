@@ -15,7 +15,7 @@ macro class*(
     body: untyped{nkStmtList}
 ): untyped =
   let
-    info = parseClassHead(head)
+    info = getClassInfo(head)
     context = newContext(newState(info))
     members = parseClassBody(body, info)
     theClass = newStmtList()
