@@ -83,5 +83,5 @@ proc defProtocol*(info: ProtocolInfo, members: ProtocolMembers): NimNode =
   for f in members.funcs:
     result[0][0][2].add f.toTupleMemberFunc()
   if info.isPub:
-    result[0][0][0] = newPostfix(result[0][0][0])
-  result[0][0][0] = newPragmaExpr(result[0][0][0], "pProtocol")
+    markWithPostfix(result[0][0][0])
+  newPragmaExpr(result[0][0][0], "pProtocol")

@@ -173,11 +173,6 @@ func insertBody(
   result.body.add newResultAsgn"self"
 
 
-func markWithAsterisk(theProc: NimNode): NimNode {.compileTime.} =
-  result = theProc
-  result.name = newPostfix(theProc.name)
-
-
 proc pickState(node; isPub): ClassInfo {.compileTime.} =
   case node.kind
   of nnkIdent:
@@ -360,11 +355,9 @@ proc addSignatures(
     args: seq[NimNode]
 ): NimNode {.compileTime.} =
   ## Adds signatures to `constructor`.
-  constructor.name =
-    if info.isPub:
-      newPostfix(ident "new"&info.name.strVal)
-    else:
-      ident "new"&info.name.strVal
+  constructor.name = ident "new"&info.name.strVal
+  if info.isPub:
+    markWithPostfix(constructor.name)
   return constructor
     .replaceReturnTypeWith(info.name)
     .insertArgs(args)
@@ -389,8 +382,6 @@ proc defNew*(info; args: seq[NimNode]): NimNode =
       info.name,
       args.decomposeDefsIntoVars()
     )
-  result =
-    if info.isPub:
-      newProc(name, params, body).markWithAsterisk()
-    else:
-      newProc(name, params, body)
+  result = newProc(name, params, body)
+  if info.isPub:
+    markWithPostfix(result.name)

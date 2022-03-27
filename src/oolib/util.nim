@@ -38,8 +38,8 @@ func insertSelf*(theProc; typeName): NimNode {.compileTime.} =
   result.params.insertIn1st newIdentDefs(ident "self", typeName)
 
 
-func newPostfix*(node): NimNode {.compileTime.} =
-  nnkPostfix.newTree ident"*", node
+template markWithPostfix*(node) =
+  node = nnkPostfix.newTree(ident"*", node)
 
 
 func decomposeDefsIntoVars*(s: seq[NimNode]): seq[NimNode] {.compileTime.} =
@@ -51,64 +51,8 @@ func decomposeDefsIntoVars*(s: seq[NimNode]): seq[NimNode] {.compileTime.} =
       result.add v
 
 
-func newPragmaExpr*(node; pragma: string): NimNode {.compileTime.} =
-  result = nnkPragmaExpr.newTree(
+template newPragmaExpr*(node; pragma: string) =
+  node = nnkPragmaExpr.newTree(
     node,
     nnkPragma.newTree(ident pragma)
-  )
-
-
-proc genConstant*(className: string; node: NimNode): NimNode {.compileTime.} =
-  # generate both a template for use with typedesc and a method for dynamic dispatch
-  #
-  # dumpAstGen:
-  #   template speed*(self: typedesc[A]): untyped = 10.0f
-  #   method speed*(self: A): typeof(10.0f) {.optBase.} = 10.0f
-
-  nnkStmtList.newTree(
-    # template
-    nnkTemplateDef.newTree(
-      node[0],
-      newEmptyNode(),
-      newEmptyNode(),
-      nnkFormalParams.newTree(
-        newIdentNode("untyped"),
-        newIdentDefs(
-          newIdentNode("self"),
-          nnkBracketExpr.newTree(
-            newIdentNode("typedesc"),
-            newIdentNode(className)
-      ),
-      newEmptyNode()
-    )
-      ),
-      newEmptyNode(),
-      newEmptyNode(),
-      newStmtList(
-        node[^1]
-      )
-    ),
-    # method
-    nnkMethodDef.newTree(
-      node[0],
-      newEmptyNode(),
-      newEmptyNode(),
-      nnkFormalParams.newTree(
-        node[1],
-        newIdentDefs(
-          newIdentNode("self"),
-          newIdentNode(className),
-          newEmptyNode(),
-      )
-    ),
-      nnkPragma.newTree(
-        newIdentNode("optBase")
-      ),
-      newEmptyNode(),
-      newStmtList(
-        nnkReturnStmt.newTree(
-          node[^1]
-        )
-      )
-    ),
   )

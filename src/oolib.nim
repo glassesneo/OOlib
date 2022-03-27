@@ -1,6 +1,6 @@
 import
   std/macros,
-  oolib / [sub, util, classes, protocols],
+  oolib / [sub, classes, protocols],
   oolib / state / [states, context]
 
 export
@@ -17,14 +17,13 @@ macro class*(
   let
     info = parseClassHead(head)
     context = newContext(newState(info))
-    theClass = context.defClass(info)
     members = parseClassBody(body, info)
+    theClass = newStmtList()
+  context.defClass(theClass, info)
   theClass.add members.body.copy()
   context.defConstructor(theClass, info, members)
-  for c in members.constsList:
-    theClass.insertIn1st genConstant(info.name.strVal, c)
   context.defMemberVars(theClass, members)
-  context.defMemberFuncs(theClass, info, members)
+  context.defMemberRoutines(theClass, info, members)
   result = theClass
 
 

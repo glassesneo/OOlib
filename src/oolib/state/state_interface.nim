@@ -1,17 +1,16 @@
 import
-  std/sugar,
   .. / classes
 
 
 type
   IState* = tuple
-    defClass: (info: ClassInfo) -> NimNode
+    defClass: proc(theClass: NimNode, info: ClassInfo)
     defConstructor: proc(
       theClass: NimNode, info: ClassInfo, members: ClassMembers
     )
     defMemberVars: proc(
       theClass: NimNode, members: ClassMembers
     )
-    defMemberFuncs: proc(
+    defMemberRoutines: proc(
       theClass: NimNode, info: ClassInfo, members: ClassMembers
     )

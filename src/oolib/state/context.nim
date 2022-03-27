@@ -1,5 +1,4 @@
 import
-  std/macros,
   .. / classes,
   state_interface
 
@@ -13,8 +12,12 @@ proc newContext*(state: IState): Context {.compileTime.} =
   Context(state: state)
 
 
-proc defClass*(self: Context, info: ClassInfo): NimNode {.compileTime.} =
-  newStmtList self.state.defClass(info)
+proc defClass*(
+    self: Context,
+    theClass: NimNode,
+    info: ClassInfo
+) {.compileTime.} =
+  self.state.defClass(theClass, info)
 
 
 proc defConstructor*(
@@ -34,10 +37,10 @@ proc defMemberVars*(
   self.state.defMemberVars(theClass, members)
 
 
-proc defMemberFuncs*(
+proc defMemberRoutines*(
     self: Context,
     theClass: NimNode,
     info: ClassInfo,
     members: ClassMembers
 ) {.compileTime.} =
-  self.state.defMemberFuncs(theClass, info, members)
+  self.state.defMemberRoutines(theClass, info, members)
