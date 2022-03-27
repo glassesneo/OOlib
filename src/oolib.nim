@@ -1,43 +1,30 @@
-import macros, sequtils
-import oolib / [sub, util, classes, protocols]
-import oolib / state / [states, context]
-export optBase, pClass, pProtocol, ignored
+import
+  std/macros,
+  oolib / [sub, classes, protocols],
+  oolib / state / [states, context]
+
+export
+  optBase,
+  pClass,
+  pProtocol,
+  ignored
+
 
 macro class*(
     head: untyped{nkIdent | nkCommand | nkInfix | nkCall | nkPragmaExpr},
     body: untyped{nkStmtList}
 ): untyped =
   let
-    info = parseClassHead(head)
+    info = getClassInfo(head)
     context = newContext(newState(info))
-  result = context.defClass(info)
-  let
     members = parseClassBody(body, info)
-  result.add members.body.copy()
-  let ctorNode = context.defConstructor(info, members)
-  if not ctorNode.isEmpty:
-    result.insertIn1st ctorNode
-  for c in members.constsList:
-    result.insertIn1st genConstant(info.name.strVal, c)
-  if info.kind in {ClassKind.Normal, ClassKind.Inheritance,
-      ClassKind.Implementation}:
-    result[0][0][2][0][2] = members.allArgsList.withoutDefault().toRecList()
-  if info.kind == Implementation:
-    result.add newProc(
-      ident"toInterface",
-      [info.base],
-      newStmtList(
-        nnkReturnStmt.newNimNode.add(
-          nnkTupleConstr.newNimNode.add(
-            members.argsList.decomposeDefsIntoVars().map newVarsColonExpr
-      ).add(
-          members.body.filterIt(
-            it.kind in {nnkProcDef, nnkFuncDef, nnkMethodDef, nnkIteratorDef}
-        ).filterIt("ignored" notin it[4]).map newLambdaColonExpr
-      )
-      )
-      )
-    ).insertSelf(info.name)
+    theClass = newStmtList()
+  context.defClass(theClass, info)
+  theClass.add members.body.copy()
+  context.defConstructor(theClass, info, members)
+  context.defMemberVars(theClass, members)
+  context.defMemberRoutines(theClass, info, members)
+  result = theClass
 
 
 proc isClass*(T: typedesc): bool =

@@ -1,6 +1,6 @@
-import macros
-import .. / classes
-import state_interface
+import
+  .. / classes,
+  state_interface
 
 
 type
@@ -12,15 +12,35 @@ proc newContext*(state: IState): Context {.compileTime.} =
   Context(state: state)
 
 
-proc defClass*(self: Context, info: ClassInfo): NimNode {.compileTime.} =
-  newStmtList self.state.defClass(info)
+proc defClass*(
+    self: Context,
+    theClass: NimNode,
+    info: ClassInfo
+) {.compileTime.} =
+  self.state.defClass(theClass, info)
 
 
 proc defConstructor*(
     self: Context,
+    theClass: NimNode,
     info: ClassInfo,
     members: ClassMembers
-): NimNode {.compileTime.} =
-  if "noNewDef" in info.pragmas:
-    return newEmptyNode()
-  self.state.defConstructor(info, members)
+) {.compileTime.} =
+  self.state.defConstructor(theClass, info, members)
+
+
+proc defMemberVars*(
+    self: Context,
+    theClass: NimNode,
+    members: ClassMembers
+) {.compileTime.} =
+  self.state.defMemberVars(theClass, members)
+
+
+proc defMemberRoutines*(
+    self: Context,
+    theClass: NimNode,
+    info: ClassInfo,
+    members: ClassMembers
+) {.compileTime.} =
+  self.state.defMemberRoutines(theClass, info, members)
