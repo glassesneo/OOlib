@@ -18,4 +18,4 @@ let
 check IA.isProtocol()
 check a.isProtocol()
 check not IB.isProtocol()
-check not b.hasCustomPragma(pProtocol)
+check not b.isProtocol()
