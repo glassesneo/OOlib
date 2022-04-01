@@ -57,7 +57,7 @@ proc parseProtocolBody*(body: NimNode): ProtocolMembers =
     of nnkDiscardStmt:
       discard
     else:
-      error "Unsupported syntax", node
+      discard
 
 
 func toTupleMemberProc(node: NimNode): NimNode =
