@@ -12,7 +12,7 @@ export
 
 macro class*(
     head: untyped{nkIdent | nkCommand | nkInfix | nkCall | nkPragmaExpr},
-    body: untyped{nkStmtList}
+    body: untyped{nkStmtList} = newEmptyNode()
 ): untyped =
   let
     info = getClassInfo(head)
@@ -37,7 +37,7 @@ proc isClass*[T](instance: T): bool =
   T.isClass()
 
 
-macro protocol*(head: untyped, body: untyped): untyped =
+macro protocol*(head: untyped, body: untyped = newEmptyNode()): untyped =
   let
     info = parseProtocolHead(head)
     members = parseProtocolBody(body)
