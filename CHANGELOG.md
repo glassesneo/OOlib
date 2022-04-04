@@ -5,32 +5,39 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
+### Added
+- `protocol` that defines a tuple for an interface [#76](https://github.com/Glasses-Neo/OOlib/issues/76)
+  - `toInterface` is used for implementation of interfaces
+  - properties marked with `{.ignored.}` is ignored when interfaces are implemented
+  - `isProtocol` to check a type is protocol or not
+- omission of body [#85](https://github.com/Glasses-Neo/OOlib/issues/85)
+  - `class` and `protocol` are now called without their bodies
 
 ## [v0.3.0] - 2021-10-16
 ### Added
 - type inference for default args [#55](https://github.com/Glasses-Neo/OOlib/pull/55)
   - member variables with default values can now be defined without type annotation
 - class data constants [#56](https://github.com/Glasses-Neo/OOlib/issues/56)
-- `isClass` proc to check type is class or not [#27](https://github.com/Glasses-Neo/OOlib/issues/27)
+- `isClass` to check a type is class or not [#27](https://github.com/Glasses-Neo/OOlib/issues/27)
 - alias class [#25](https://github.com/Glasses-Neo/OOlib/issues/25)
-- `{.noNewDef.}` to not define constructor [#43](https://github.com/Glasses-Neo/OOlib/issues/43)
+- `{.noNewDef.}` to not define constructors [#43](https://github.com/Glasses-Neo/OOlib/issues/43)
 
 ## [v0.2.2] - 2021-8-26 [YANKED]
 ### Fixed
 - a bug that prevented `{.open.}` from working [#42](https://github.com/Glasses-Neo/OOlib/issues/42)
 
 ### Changed
-- disabled auto definition of subclass constructor [#44](https://github.com/Glasses-Neo/OOlib/issues/44)
+- disabled auto-definition of subclass constructors [#44](https://github.com/Glasses-Neo/OOlib/issues/44)
   - constructors are now not defined automatically in subclasses
 - subclasses are now warning when `{.open.}` is used together [#42](https://github.com/Glasses-Neo/OOlib/issues/42)
 
 ## [v0.2.1] - 2021-8-23 [YANKED]
 ### Fixed
-- a bug in constructor [#42](https://github.com/Glasses-Neo/OOlib/issues/45)
+- a bug in constructors [#42](https://github.com/Glasses-Neo/OOlib/issues/45)
 
 ## [v0.2.0] - 2021-8-22
 ### Added
-- auto definition of constructor [#6](https://github.com/Glasses-Neo/OOlib/issues/6)
+- auto-definition of constructors [#6](https://github.com/Glasses-Neo/OOlib/issues/6)
 - assistance with constructor definition [#6](https://github.com/Glasses-Neo/OOlib/issues/)
 - `{.open.}` to allow inheritance [#13](https://github.com/Glasses-Neo/OOlib/issues/13)
 - support for `converter` [#16](https://github.com/Glasses-Neo/OOlib/issues/16)
