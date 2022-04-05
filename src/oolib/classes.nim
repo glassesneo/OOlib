@@ -282,6 +282,9 @@ proc parseClassBody*(body: NimNode; info): ClassMembers {.compileTime.} =
       if node.isConstructor:
         if result.ctorBase.isEmpty:
           result.ctorBase = node.copy()
+          result.ctorBase[4] = nnkPragma.newTree(
+            newColonExpr(ident"deprecated", newLit"Use Type.new instead")
+          )
           result.ctorBase2 = node.copy()
         else:
           error "Constructor already exists", node
@@ -418,6 +421,9 @@ proc defOldNew*(info; args: seq[NimNode]): NimNode =
   result = newProc(name, params, body)
   if info.isPub:
     markWithPostfix(result.name)
+  result[4] = nnkPragma.newTree(
+    newColonExpr(ident"deprecated", newLit"Use Type.new instead")
+  )
 
 
 proc defNew*(info; args: seq[NimNode]): NimNode =
