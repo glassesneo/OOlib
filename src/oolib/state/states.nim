@@ -8,6 +8,10 @@ import
   state_interface
 
 
+func hasAsterisk*(node: NimNode): bool {.compileTime.} =
+  node.kind == nnkPostfix and node[0].eqIdent"*"
+
+
 func rmAsterisk(node: NimNode): NimNode {.compileTime.} =
   result = node
   if node.hasAsterisk:
@@ -28,25 +32,24 @@ func toRecList(s: seq[NimNode]): NimNode {.compileTime.} =
 
 
 proc genConstant*(className: string; node: NimNode): NimNode {.compileTime.} =
-  # generate both a template for use with typedesc and a method for dynamic dispatch
-  #
+  ## Generates both a template for use with typedesc and a method for dynamic dispatch.
   # dumpAstGen:
   #   template speed*(self: typedesc[A]): untyped = 10.0f
   #   method speed*(self: A): typeof(10.0f) {.optBase.} = 10.0f
 
-  nnkStmtList.newTree(
+  newStmtList(
     # template
     nnkTemplateDef.newTree(
       node[0],
       newEmptyNode(),
       newEmptyNode(),
       nnkFormalParams.newTree(
-        newIdentNode("untyped"),
+        ident"untyped",
         newIdentDefs(
-          newIdentNode("self"),
+          ident"self",
           nnkBracketExpr.newTree(
-            newIdentNode("typedesc"),
-            newIdentNode(className)
+            ident"typedesc",
+            ident className
       ),
       newEmptyNode()
     )
@@ -65,13 +68,13 @@ proc genConstant*(className: string; node: NimNode): NimNode {.compileTime.} =
       nnkFormalParams.newTree(
         node[1],
         newIdentDefs(
-          newIdentNode("self"),
-          newIdentNode(className),
+          ident"self",
+          ident className,
           newEmptyNode(),
       )
     ),
       nnkPragma.newTree(
-        newIdentNode("optBase")
+        ident"optBase"
       ),
       newEmptyNode(),
       newStmtList(
@@ -81,6 +84,52 @@ proc genConstant*(className: string; node: NimNode): NimNode {.compileTime.} =
       )
     ),
   )
+
+
+func isEmpty*(node: NimNode): bool {.compileTime.} =
+  node.kind == nnkEmpty
+
+
+func hasDefault*(node: NimNode): bool {.compileTime.} =
+  ## `node` has to be `nnkIdentDefs` or `nnkConstDef`.
+  node.expectKind {nnkIdentDefs, nnkConstDef}
+  not node.last.isEmpty
+
+
+func insertSelf*(theProc, typeName: NimNode): NimNode {.compileTime.} =
+  ## Inserts `self: typeName` in the 1st of theProc.params.
+  result = theProc
+  result.params.insert 1, newIdentDefs(ident "self", typeName)
+
+
+func inferValType(node: NimNode) {.compileTime.} =
+  ## Infers type from default if a type annotation is empty.
+  ## `node` has to be `nnkIdentDefs` or `nnkConstDef`.
+  node.expectKind {nnkIdentDefs, nnkConstDef}
+  node[^2] = node[^2] or newCall(ident"typeof", node[^1])
+
+
+func isConstructor(node: NimNode): bool {.compileTime.} =
+  ## `node` has to be `nnkProcDef`.
+  node.expectKind {nnkProcDef}
+  node[0].kind == nnkAccQuoted and node.name.eqIdent"new"
+
+
+func hasPragma(node: NimNode): bool {.compileTime.} =
+  ## `node` has to be `nnkIdentDefs or nnkConstDef`.
+  node.expectKind {nnkIdentDefs, nnkConstDef}
+  node[0].kind == nnkPragmaExpr
+
+
+func newSuperStmt(baseName: NimNode): NimNode {.compileTime.} =
+  ## Generates `var super = Base(self)`.
+  newVarStmt ident"super", newCall(baseName, ident "self")
+
+
+func insertSuperStmt(theProc, baseName: NimNode): NimNode {.compileTime.} =
+  ## Inserts `var super = Base(self)` in the 1st line of `theProc.body`.
+  result = theProc
+  result.body.insert 0, newSuperStmt(baseName)
 
 
 type
@@ -93,6 +142,48 @@ type
   AliasState* = ref object
 
   ImplementationState* = ref object
+
+
+proc getClassMembers(
+  self: NormalState;
+  body: NimNode;
+  info: ClassInfo
+): ClassMembers {.compileTime.} =
+  result.body = newStmtList()
+  result.ctorBase = newEmptyNode()
+  result.ctorBase2 = newEmptyNode()
+  for node in body:
+    case node.kind
+    of nnkVarSection:
+      for n in node:
+        if "noNewDef" in info.pragmas and n.hasDefault:
+          error "default values cannot be used with {.noNewDef.}", n
+        n.inferValType()
+        if n.hasPragma and "ignored" in n[0][1]:
+          error "{.ignored.} pragma cannot be used in non-implemented classes"
+        result.argsList.add n
+    of nnkConstSection:
+      for n in node:
+        n.inferValType()
+        if not n.hasDefault:
+          error "A constant must have a value", node
+        result.constsList.add n
+    of nnkProcDef:
+      if node.isConstructor:
+        if result.ctorBase.isEmpty:
+          result.ctorBase = node.copy()
+          result.ctorBase[4] = nnkPragma.newTree(
+            newColonExpr(ident"deprecated", newLit"Use Type.new instead")
+          )
+          result.ctorBase2 = node.copy()
+        else:
+          error "Constructor already exists", node
+      else:
+        result.body.add node.insertSelf(info.name)
+    of nnkMethodDef, nnkFuncDef, nnkIteratorDef, nnkConverterDef, nnkTemplateDef:
+      result.body.add node.insertSelf(info.name)
+    else:
+      discard
 
 
 proc defClass(
@@ -116,7 +207,8 @@ proc defConstructor(
 ) {.compileTime.} =
   if "noNewDef" in info.pragmas:
     return
-  theClass.insertIn1st(
+  theClass.insert(
+    1,
     if members.ctorBase.isEmpty:
       info.defOldNew(members.allArgsList.map rmAsteriskFromIdent)
     else:
@@ -125,7 +217,8 @@ proc defConstructor(
         members.allArgsList.filter(hasDefault).map rmAsteriskFromIdent
       )
   )
-  theClass.insertIn1st(
+  theClass.insert(
+    1,
     if members.ctorBase2.isEmpty:
       info.defNew(members.allArgsList.map rmAsteriskFromIdent)
     else:
@@ -151,11 +244,13 @@ proc defMemberRoutines(
     members: ClassMembers
 ) {.compileTime.} =
   for c in members.constsList:
-    theClass.insertIn1st genConstant(info.name.strVal, c)
+    theClass.insert 1, genConstant(info.name.strVal, c)
 
 
 proc toInterface*(self: NormalState): IState {.compileTime.} =
   result = (
+    getClassMembers:
+    (body: NimNode, info: ClassInfo) => self.getClassMembers(body, info),
     defClass: (theClass: NimNode, info: ClassInfo) => self.defClass(theClass, info),
     defConstructor:
     (theClass: NimNode, info: ClassInfo, members: ClassMembers) =>
@@ -167,6 +262,51 @@ proc toInterface*(self: NormalState): IState {.compileTime.} =
       self.defMemberRoutines(theClass, info, members)
 
   )
+
+
+proc getClassMembers(
+  self: InheritanceState;
+  body: NimNode;
+  info: ClassInfo
+): ClassMembers {.compileTime.} =
+  result.body = newStmtList()
+  result.ctorBase = newEmptyNode()
+  result.ctorBase2 = newEmptyNode()
+  for node in body:
+    case node.kind
+    of nnkVarSection:
+      for n in node:
+        if "noNewDef" in info.pragmas and n.hasDefault:
+          error "default values cannot be used with {.noNewDef.}", n
+        if n.hasPragma and "ignored" in n[0][1]:
+          error "{.ignored.} pragma cannot be used in non-implemented classes"
+        n.inferValType()
+        result.argsList.add n
+    of nnkConstSection:
+      for n in node:
+        n.inferValType()
+        if not n.hasDefault:
+          error "A constant must have a value", node
+        result.constsList.add n
+    of nnkProcDef:
+      if node.isConstructor:
+        if result.ctorBase.isEmpty:
+          result.ctorBase = node.copy()
+          result.ctorBase[4] = nnkPragma.newTree(
+            newColonExpr(ident"deprecated", newLit"Use Type.new instead")
+          )
+          result.ctorBase2 = node.copy()
+        else:
+          error "Constructor already exists", node
+      else:
+        result.body.add node.insertSelf(info.name)
+    of nnkMethodDef:
+      node.body = replaceSuper(node.body)
+      result.body.add node.insertSelf(info.name).insertSuperStmt(info.base)
+    of nnkFuncDef, nnkIteratorDef, nnkConverterDef, nnkTemplateDef:
+      result.body.add node.insertSelf(info.name)
+    else:
+      discard
 
 
 proc defClass(
@@ -187,11 +327,11 @@ proc defConstructor(
     members: ClassMembers
 ) {.compileTime.} =
   if not (members.ctorBase.isEmpty or "noNewDef" in info.pragmas):
-    theClass.insertIn1st members.ctorBase.assistWithOldDef(
+    theClass.insert 1, members.ctorBase.assistWithOldDef(
       info,
       members.allArgsList.filter(hasDefault).map rmAsteriskFromIdent
     )
-    theClass.insertIn1st members.ctorBase2.assistWithDef(
+    theClass.insert 1, members.ctorBase2.assistWithDef(
       info,
       members.allArgsList.filter(hasDefault).map rmAsteriskFromIdent
     )
@@ -212,11 +352,13 @@ proc defMemberRoutines(
     members: ClassMembers
 ) {.compileTime.} =
   for c in members.constsList:
-    theClass.insertIn1st genConstant(info.name.strVal, c)
+    theClass.insert 1, genConstant(info.name.strVal, c)
 
 
 proc toInterface*(self: InheritanceState): IState {.compileTime.} =
   result = (
+    getClassMembers:
+    (body: NimNode, info: ClassInfo) => self.getClassMembers(body, info),
     defClass: (theClass: NimNode, info: ClassInfo) => self.defClass(theClass, info),
     defConstructor:
     (theClass: NimNode, info: ClassInfo, members: ClassMembers) =>
@@ -227,6 +369,28 @@ proc toInterface*(self: InheritanceState): IState {.compileTime.} =
         members: ClassMembers) =>
       self.defMemberRoutines(theClass, info, members)
   )
+
+
+proc getClassMembers(
+  self: DistinctState;
+  body: NimNode;
+  info: ClassInfo
+): ClassMembers {.compileTime.} =
+  result.body = newStmtList()
+  for node in body:
+    case node.kind
+    of nnkVarSection:
+      error "Distinct type cannot have variables", node
+    of nnkConstSection:
+      for n in node:
+        if not n.hasDefault:
+          error "A constant must have a value", node
+        n.inferValType()
+        result.constsList.add n
+    of nnkProcDef, nnkMethodDef, nnkFuncDef, nnkIteratorDef, nnkConverterDef, nnkTemplateDef:
+      result.body.add node.insertSelf(info.name)
+    else:
+      discard
 
 
 proc defClass(
@@ -267,11 +431,13 @@ proc defMemberRoutines(
     members: ClassMembers
 ) {.compileTime.} =
   for c in members.constsList:
-    theClass.insertIn1st genConstant(info.name.strVal, c)
+    theClass.insert 1, genConstant(info.name.strVal, c)
 
 
 proc toInterface*(self: DistinctState): IState {.compileTime.} =
   result = (
+    getClassMembers:
+    (body: NimNode, info: ClassInfo) => self.getClassMembers(body, info),
     defClass: (theClass: NimNode, info: ClassInfo) => self.defClass(theClass, info),
     defConstructor:
     (theClass: NimNode, info: ClassInfo, members: ClassMembers) =>
@@ -284,6 +450,28 @@ proc toInterface*(self: DistinctState): IState {.compileTime.} =
 
 
   )
+
+
+proc getClassMembers(
+  self: AliasState;
+  body: NimNode;
+  info: ClassInfo
+): ClassMembers {.compileTime.} =
+  result.body = newStmtList()
+  for node in body:
+    case node.kind
+    of nnkVarSection:
+      error "Type alias cannot have variables", node
+    of nnkConstSection:
+      for n in node:
+        if not n.hasDefault:
+          error "A constant must have a value", node
+        n.inferValType()
+        result.constsList.add n
+    of nnkProcDef, nnkMethodDef, nnkFuncDef, nnkIteratorDef, nnkConverterDef, nnkTemplateDef:
+      result.body.add node.insertSelf(info.name)
+    else:
+      discard
 
 
 proc defClass(
@@ -321,11 +509,13 @@ proc defMemberRoutines(
     members: ClassMembers
 ) {.compileTime.} =
   for c in members.constsList:
-    theClass.insertIn1st genConstant(info.name.strVal, c)
+    theClass.insert 1, genConstant(info.name.strVal, c)
 
 
 proc toInterface*(self: AliasState): IState {.compileTime.} =
   result = (
+    getClassMembers:
+    (body: NimNode, info: ClassInfo) => self.getClassMembers(body, info),
     defClass: (theClass: NimNode, info: ClassInfo) => self.defClass(theClass, info),
     defConstructor:
     (theClass: NimNode, info: ClassInfo, members: ClassMembers) =>
@@ -338,6 +528,49 @@ proc toInterface*(self: AliasState): IState {.compileTime.} =
 
 
   )
+
+
+proc getClassMembers(
+  self: ImplementationState;
+  body: NimNode;
+  info: ClassInfo
+): ClassMembers {.compileTime.} =
+  result.body = newStmtList()
+  result.ctorBase = newEmptyNode()
+  result.ctorBase2 = newEmptyNode()
+  for node in body:
+    case node.kind
+    of nnkVarSection:
+      for n in node:
+        if "noNewDef" in info.pragmas and n.hasDefault:
+          error "default values cannot be used with {.noNewDef.}", n
+        n.inferValType()
+        if n.hasPragma and "ignored" in n[0][1]:
+          result.ignoredArgsList.add n
+        else:
+          result.argsList.add n
+    of nnkConstSection:
+      for n in node:
+        if not n.hasDefault:
+          error "A constant must have a value", node
+        n.inferValType()
+        result.constsList.add n
+    of nnkProcDef:
+      if node.isConstructor:
+        if result.ctorBase.isEmpty:
+          result.ctorBase = node.copy()
+          result.ctorBase[4] = nnkPragma.newTree(
+            newColonExpr(ident"deprecated", newLit"Use Type.new instead")
+          )
+          result.ctorBase2 = node.copy()
+        else:
+          error "Constructor already exists", node
+      else:
+        result.body.add node.insertSelf(info.name)
+    of nnkMethodDef, nnkFuncDef, nnkIteratorDef, nnkConverterDef, nnkTemplateDef:
+      result.body.add node.insertSelf(info.name)
+    else:
+      discard
 
 
 proc defClass(
@@ -359,7 +592,8 @@ proc defConstructor(
 ) {.compileTime.} =
   if "noNewDef" in info.pragmas:
     return
-  theClass.insertIn1st(
+  theClass.insert(
+    1,
     if members.ctorBase.isEmpty:
       info.defOldNew(members.allArgsList.map rmAsteriskFromIdent)
     else:
@@ -368,7 +602,8 @@ proc defConstructor(
         members.allArgsList.filter(hasDefault).map rmAsteriskFromIdent
       )
   )
-  theClass.insertIn1st(
+  theClass.insert(
+    1,
     if members.ctorBase2.isEmpty:
       info.defNew(members.allArgsList.map rmAsteriskFromIdent)
     else:
@@ -394,7 +629,7 @@ proc defMemberRoutines(
     members: ClassMembers
 ) {.compileTime.} =
   for c in members.constsList:
-    theClass.insertIn1st genConstant(info.name.strVal, c)
+    theClass.insert 1, genConstant(info.name.strVal, c)
   theClass.add newProc(
     ident"toInterface",
     [info.base],
@@ -414,6 +649,8 @@ proc defMemberRoutines(
 
 proc toInterface*(self: ImplementationState): IState {.compileTime.} =
   result = (
+    getClassMembers:
+    (body: NimNode, info: ClassInfo) => self.getClassMembers(body, info),
     defClass: (theClass: NimNode, info: ClassInfo) => self.defClass(theClass, info),
     defConstructor:
     (theClass: NimNode, info: ClassInfo, members: ClassMembers) =>

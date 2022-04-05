@@ -55,33 +55,6 @@ func isInheritance(node): bool {.compileTime.} =
   node.kind == nnkInfix and node[0].eqIdent"of"
 
 
-func isConstructor(node): bool {.compileTime.} =
-  node[0].kind == nnkAccQuoted and node.name.eqIdent"new"
-
-
-func hasPragma(node): bool {.compileTime.} =
-  node.expectKind {nnkIdentDefs, nnkConstDef}
-  node[0].kind == nnkPragmaExpr
-
-
-func inferValType(node: NimNode) {.compileTime.} =
-  ## Infers type from default if a type annotation is empty.
-  ## `node` has to be `nnkIdentDefs` or `nnkConstDef`.
-  node.expectKind {nnkIdentDefs, nnkConstDef}
-  node[^2] = node[^2] or newCall(ident"typeof", node[^1])
-
-
-func newSuperStmt(baseName: NimNode): NimNode {.compileTime.} =
-  ## Generates `var super = Base(self)`.
-  newVarStmt ident"super", newCall(baseName, ident "self")
-
-
-func insertSuperStmt(theProc, baseName: NimNode): NimNode {.compileTime.} =
-  ## Inserts `var super = Base(self)` in the 1st line of `theProc.body`.
-  result = theProc
-  result.body.insert 0, newSuperStmt(baseName)
-
-
 func delDefaultValue(node): NimNode {.compileTime.} =
   result = node
   result[^1] = newEmptyNode()
@@ -251,57 +224,6 @@ proc getClassInfo*(head: NimNode): ClassInfo {.compileTime.} =
     error "Too many arguments", head
 
 
-proc parseClassBody*(body: NimNode; info): ClassMembers {.compileTime.} =
-  result.body = newStmtList()
-  result.ctorBase = newEmptyNode()
-  result.ctorBase2 = newEmptyNode()
-  for node in body:
-    case node.kind
-    of nnkVarSection:
-      case info.kind
-      of Distinct:
-        error "Distinct type cannot have variables", node
-      of Alias:
-        error "Type alias cannot have variables", node
-      else: discard
-      for n in node:
-        if "noNewDef" in info.pragmas and n.hasDefault:
-          error "default values cannot be used with {.noNewDef.}", n
-        n.inferValType()
-        if n.hasPragma and "ignored" in n[0][1]:
-          result.ignoredArgsList.add n
-        else:
-          result.argsList.add n
-    of nnkConstSection:
-      for n in node:
-        n.inferValType()
-        if not n.hasDefault:
-          error "A constant must have a value", node
-        result.constsList.add n
-    of nnkProcDef:
-      if node.isConstructor:
-        if result.ctorBase.isEmpty:
-          result.ctorBase = node.copy()
-          result.ctorBase[4] = nnkPragma.newTree(
-            newColonExpr(ident"deprecated", newLit"Use Type.new instead")
-          )
-          result.ctorBase2 = node.copy()
-        else:
-          error "Constructor already exists", node
-      else:
-        result.body.add node.insertSelf(info.name)
-    of nnkMethodDef:
-      if info.kind == Inheritance:
-        node.body = replaceSuper(node.body)
-        result.body.add node.insertSelf(info.name).insertSuperStmt(info.base)
-        continue
-      result.body.add node.insertSelf(info.name)
-    of nnkFuncDef, nnkIteratorDef, nnkConverterDef, nnkTemplateDef:
-      result.body.add node.insertSelf(info.name)
-    else:
-      discard
-
-
 func allArgsList*(members): seq[NimNode] {.compileTime.} =
   members.argsList & members.ignoredArgsList
 
@@ -332,7 +254,7 @@ func insertBody(
     return
   result.body.insert 0, newSelfStmt(result.params[0])
   for v in vars.decomposeDefsIntoVars():
-    result.body.insertIn1st getAst(asgnWith v)
+    result.body.insert 1, getAst(asgnWith v)
   result.body.add newResultAsgn"self"
 
 
@@ -406,7 +328,7 @@ proc genNewBody(
 ): NimNode {.compileTime.} =
   result = newStmtList newSelfStmt(typeName)
   for v in vars:
-    result.insertIn1st getAst(asgnWith v)
+    result.insert 1, getAst(asgnWith v)
   result.add newResultAsgn"self"
 
 

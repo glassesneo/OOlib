@@ -12,6 +12,14 @@ proc newContext*(state: IState): Context {.compileTime.} =
   Context(state: state)
 
 
+proc getClassMembers*(
+    self: Context,
+    body: NimNode,
+    info: ClassInfo
+): ClassMembers {.compileTime.} =
+  self.state.getClassMembers(body, info)
+
+
 proc defClass*(
     self: Context,
     theClass: NimNode,
