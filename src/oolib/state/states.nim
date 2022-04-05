@@ -8,12 +8,6 @@ import
   state_interface
 
 
-func hasAsterisk*(node: NimNode): bool {.compileTime.} =
-  node.len > 0 and
-  node.kind == nnkPostfix and
-  node[0].eqIdent"*"
-
-
 func rmAsterisk(node: NimNode): NimNode {.compileTime.} =
   result = node
   if node.hasAsterisk:
@@ -124,9 +118,18 @@ proc defConstructor(
     return
   theClass.insertIn1st(
     if members.ctorBase.isEmpty:
+      info.defOldNew(members.allArgsList.map rmAsteriskFromIdent)
+    else:
+      members.ctorBase.assistWithOldDef(
+        info,
+        members.allArgsList.filter(hasDefault).map rmAsteriskFromIdent
+      )
+  )
+  theClass.insertIn1st(
+    if members.ctorBase2.isEmpty:
       info.defNew(members.allArgsList.map rmAsteriskFromIdent)
     else:
-      members.ctorBase.assistWithDef(
+      members.ctorBase2.assistWithDef(
         info,
         members.allArgsList.filter(hasDefault).map rmAsteriskFromIdent
       )
@@ -184,7 +187,11 @@ proc defConstructor(
     members: ClassMembers
 ) {.compileTime.} =
   if not (members.ctorBase.isEmpty or "noNewDef" in info.pragmas):
-    theClass.insertIn1st members.ctorBase.assistWithDef(
+    theClass.insertIn1st members.ctorBase.assistWithOldDef(
+      info,
+      members.allArgsList.filter(hasDefault).map rmAsteriskFromIdent
+    )
+    theClass.insertIn1st members.ctorBase2.assistWithDef(
       info,
       members.allArgsList.filter(hasDefault).map rmAsteriskFromIdent
     )
@@ -354,9 +361,18 @@ proc defConstructor(
     return
   theClass.insertIn1st(
     if members.ctorBase.isEmpty:
+      info.defOldNew(members.allArgsList.map rmAsteriskFromIdent)
+    else:
+      members.ctorBase.assistWithOldDef(
+        info,
+        members.allArgsList.filter(hasDefault).map rmAsteriskFromIdent
+      )
+  )
+  theClass.insertIn1st(
+    if members.ctorBase2.isEmpty:
       info.defNew(members.allArgsList.map rmAsteriskFromIdent)
     else:
-      members.ctorBase.assistWithDef(
+      members.ctorBase2.assistWithDef(
         info,
         members.allArgsList.filter(hasDefault).map rmAsteriskFromIdent
       )
