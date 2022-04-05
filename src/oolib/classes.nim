@@ -20,7 +20,7 @@ type
     name, base: NimNode
 
   ClassMembers* = tuple
-    body, ctorBase: NimNode
+    body, ctorBase, ctorBase2: NimNode
     argsList, ignoredArgsList, constsList: seq[NimNode]
 
 
@@ -135,42 +135,8 @@ proc replaceSuper*(node): NimNode =
     result[i] = n.replaceSuper()
 
 
-func newSelfStmt(typeName: NimNode): NimNode {.compileTime.} =
-  ## Generates `var self = typeName()`.
-  newVarStmt ident"self", newCall(typeName)
-
-
 func newResultAsgn(rhs: string): NimNode {.compileTime.} =
   newAssignment ident"result", ident rhs
-
-
-proc genNewBody(typeName: NimNode; vars: seq[
-    NimNode]): NimNode {.compileTime.} =
-  result = newStmtList newSelfStmt(typeName)
-  for v in vars:
-    result.insertIn1st getAst(asgnWith v)
-  result.add newResultAsgn"self"
-
-
-func replaceReturnTypeWith(
-    constructor,
-    typeName: NimNode
-): NimNode {.compileTime.} =
-  result = constructor
-  result.params[0] = typeName
-
-
-func insertBody(
-    constructor: NimNode;
-    vars: seq[NimNode]
-): NimNode {.compileTime.} =
-  result = constructor
-  if result.body[0].kind == nnkDiscardStmt:
-    return
-  result.body.insert 0, newSelfStmt(result.params[0])
-  for v in vars.decomposeDefsIntoVars():
-    result.body.insertIn1st getAst(asgnWith v)
-  result.body.add newResultAsgn"self"
 
 
 proc pickState(node; isPub): ClassInfo {.compileTime.} =
@@ -288,6 +254,7 @@ proc getClassInfo*(head: NimNode): ClassInfo {.compileTime.} =
 proc parseClassBody*(body: NimNode; info): ClassMembers {.compileTime.} =
   result.body = newStmtList()
   result.ctorBase = newEmptyNode()
+  result.ctorBase2 = newEmptyNode()
   for node in body:
     case node.kind
     of nnkVarSection:
@@ -314,7 +281,11 @@ proc parseClassBody*(body: NimNode; info): ClassMembers {.compileTime.} =
     of nnkProcDef:
       if node.isConstructor:
         if result.ctorBase.isEmpty:
-          result.ctorBase = node
+          result.ctorBase = node.copy()
+          result.ctorBase[4] = nnkPragma.newTree(
+            newColonExpr(ident"deprecated", newLit"Use Type.new instead")
+          )
+          result.ctorBase2 = node.copy()
         else:
           error "Constructor already exists", node
       else:
@@ -339,6 +310,32 @@ func withoutDefault*(argsList: seq[NimNode]): seq[NimNode] =
   argsList.map delDefaultValue
 
 
+func newSelfStmt(typeName: NimNode): NimNode {.compileTime.} =
+  ## Generates `var self = typeName()`.
+  newVarStmt ident"self", newCall(typeName)
+
+
+func replaceReturnTypeWith(
+    constructor,
+    typeName: NimNode
+): NimNode {.compileTime.} =
+  result = constructor
+  result.params[0] = typeName
+
+
+func insertBody(
+    constructor: NimNode;
+    vars: seq[NimNode]
+): NimNode {.compileTime.} =
+  result = constructor
+  if result.body[0].kind == nnkDiscardStmt:
+    return
+  result.body.insert 0, newSelfStmt(result.params[0])
+  for v in vars.decomposeDefsIntoVars():
+    result.body.insertIn1st getAst(asgnWith v)
+  result.body.add newResultAsgn"self"
+
+
 proc insertArgs(
     constructor: NimNode;
     vars: seq[NimNode]
@@ -346,10 +343,10 @@ proc insertArgs(
   ## Inserts `vars` to constructor args.
   result = constructor
   for v in vars[0..^1]:
-    result.params.insertIn1st(v)
+    result.params.add(v)
 
 
-proc addSignatures(
+proc addOldSignatures(
     constructor;
     info;
     args: seq[NimNode]
@@ -363,6 +360,35 @@ proc addSignatures(
     .insertArgs(args)
 
 
+proc addSignatures(
+    constructor;
+    info;
+    args: seq[NimNode]
+): NimNode {.compileTime.} =
+  ## Adds signatures to `constructor`.
+  constructor.name = ident"new"
+  if info.isPub:
+    markWithPostfix(constructor.name)
+  result = constructor
+    .replaceReturnTypeWith(info.name)
+    .insertArgs(args)
+  result.params.insert 1, newIdentDefs(
+    ident"_",
+    nnkBracketExpr.newTree(ident"typedesc", info.name)
+  )
+
+
+proc assistWithOldDef*(
+    constructor;
+    info;
+    args: seq[NimNode]
+): NimNode {.compileTime.} =
+  ## Adds signatures and insert body to `constructor`.
+  constructor
+    .addOldSignatures(info, args)
+    .insertBody(args)
+
+
 proc assistWithDef*(
     constructor;
     info;
@@ -374,10 +400,41 @@ proc assistWithDef*(
     .insertBody(args)
 
 
-proc defNew*(info; args: seq[NimNode]): NimNode =
+proc genNewBody(
+    typeName: NimNode;
+    vars: seq[NimNode]
+): NimNode {.compileTime.} =
+  result = newStmtList newSelfStmt(typeName)
+  for v in vars:
+    result.insertIn1st getAst(asgnWith v)
+  result.add newResultAsgn"self"
+
+
+proc defOldNew*(info; args: seq[NimNode]): NimNode =
   var
     name = ident "new"&strVal(info.name)
     params = info.name&args
+    body = genNewBody(
+      info.name,
+      args.decomposeDefsIntoVars()
+    )
+  result = newProc(name, params, body)
+  if info.isPub:
+    markWithPostfix(result.name)
+  result[4] = nnkPragma.newTree(
+    newColonExpr(ident"deprecated", newLit"Use Type.new instead")
+  )
+
+
+proc defNew*(info; args: seq[NimNode]): NimNode =
+  var
+    name = ident"new"
+    params = info.name&(
+      newIdentDefs(
+        ident"_",
+        nnkBracketExpr.newTree(ident"typedesc", info.name)
+      )&args
+    )
     body = genNewBody(
       info.name,
       args.decomposeDefsIntoVars()

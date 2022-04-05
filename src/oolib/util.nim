@@ -51,6 +51,10 @@ func decomposeDefsIntoVars*(s: seq[NimNode]): seq[NimNode] {.compileTime.} =
       result.add v
 
 
+func hasAsterisk*(node: NimNode): bool {.compileTime.} =
+  node.kind == nnkPostfix and node[0].eqIdent"*"
+
+
 template newPragmaExpr*(node; pragma: string) =
   node = nnkPragmaExpr.newTree(
     node,
