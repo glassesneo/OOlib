@@ -18,7 +18,7 @@ macro class*(
   let
     info = getClassInfo(head)
     context = newContext(newState(info))
-    members = parseClassBody(body, info)
+    members = context.getClassMembers(body, info)
     theClass = newStmtList()
   context.defClass(theClass, info)
   theClass.add members.body.copy()
