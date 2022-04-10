@@ -8,7 +8,7 @@ import
   state_interface
 
 
-func hasAsterisk*(node: NimNode): bool {.compileTime.} =
+func hasAsterisk(node: NimNode): bool {.compileTime.} =
   node.kind == nnkPostfix and node[0].eqIdent"*"
 
 
@@ -31,7 +31,7 @@ func toRecList(s: seq[NimNode]): NimNode {.compileTime.} =
     result.add def
 
 
-proc genConstant*(className: string; node: NimNode): NimNode {.compileTime.} =
+proc genConstant(className: string; node: NimNode): NimNode {.compileTime.} =
   ## Generates both a template for use with typedesc and a method for dynamic dispatch.
   # dumpAstGen:
   #   template speed*(self: typedesc[A]): untyped = 10.0f
@@ -90,7 +90,7 @@ template markWithPostfix(node) =
   node = nnkPostfix.newTree(ident"*", node)
 
 
-template newPragmaExpr*(node; pragma: string) =
+template newPragmaExpr(node; pragma: string) =
   node = nnkPragmaExpr.newTree(
     node,
     nnkPragma.newTree(ident pragma)
@@ -178,7 +178,7 @@ proc addSignatures(
   )
 
 
-proc assistWithOldDef*(
+proc assistWithOldDef(
     constructor: NimNode;
     info: ClassInfo;
     args: seq[NimNode]
@@ -189,7 +189,7 @@ proc assistWithOldDef*(
     .insertBody(args)
 
 
-proc assistWithDef*(
+proc assistWithDef(
     constructor: NimNode;
     info: ClassInfo;
     args: seq[NimNode]
@@ -252,7 +252,7 @@ proc genNewBody(
   result.add newResultAsgn"self"
 
 
-proc defOldNew*(info: ClassInfo; args: seq[NimNode]): NimNode =
+proc defOldNew(info: ClassInfo; args: seq[NimNode]): NimNode =
   var
     name = ident "new"&strVal(info.name)
     params = info.name&args
@@ -268,7 +268,7 @@ proc defOldNew*(info: ClassInfo; args: seq[NimNode]): NimNode =
   )
 
 
-proc defNew*(info: ClassInfo; args: seq[NimNode]): NimNode =
+proc defNew(info: ClassInfo; args: seq[NimNode]): NimNode =
   var
     name = ident"new"
     params = info.name&(
@@ -291,25 +291,25 @@ func delDefaultValue(node: NimNode): NimNode {.compileTime.} =
   result[^1] = newEmptyNode()
 
 
-func allArgsList*(members: ClassMembers): seq[NimNode] {.compileTime.} =
+func allArgsList(members: ClassMembers): seq[NimNode] {.compileTime.} =
   members.argsList & members.ignoredArgsList
 
 
-func withoutDefault*(argsList: seq[NimNode]): seq[NimNode] =
+func withoutDefault(argsList: seq[NimNode]): seq[NimNode] =
   argsList.map delDefaultValue
 
 
-func isEmpty*(node: NimNode): bool {.compileTime.} =
+func isEmpty(node: NimNode): bool {.compileTime.} =
   node.kind == nnkEmpty
 
 
-func hasDefault*(node: NimNode): bool {.compileTime.} =
+func hasDefault(node: NimNode): bool {.compileTime.} =
   ## `node` has to be `nnkIdentDefs` or `nnkConstDef`.
   node.expectKind {nnkIdentDefs, nnkConstDef}
   not node.last.isEmpty
 
 
-func insertSelf*(theProc, typeName: NimNode): NimNode {.compileTime.} =
+func insertSelf(theProc, typeName: NimNode): NimNode {.compileTime.} =
   ## Inserts `self: typeName` in the 1st of theProc.params.
   result = theProc
   result.params.insert 1, newIdentDefs(ident "self", typeName)
