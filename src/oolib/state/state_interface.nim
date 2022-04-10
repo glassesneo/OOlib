@@ -1,5 +1,5 @@
 import
-  .. / classes
+  .. / types
 
 
 type

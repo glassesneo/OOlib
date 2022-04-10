@@ -1,6 +1,6 @@
 import
   std/macros,
-  oolib / [sub, classes, protocols],
+  oolib / [sub, types, classes, protocols],
   oolib / state / [states, context]
 
 export
