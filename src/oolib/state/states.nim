@@ -120,7 +120,8 @@ proc insertArgs(
     vars: seq[NimNode]
 ) {.compileTime.} =
   ## Inserts `vars` to constructor args.
-  vars.applyIt(constructor.params.add it)
+  for v in vars:
+    constructor.params.add v
 
 
 func replaceReturnTypeWith(constructor, typeName: NimNode) {.compileTime.} =
