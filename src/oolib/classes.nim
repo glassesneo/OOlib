@@ -1,5 +1,6 @@
 import
   std/macros,
+  std/sugar,
   types,
   util
 
@@ -14,8 +15,7 @@ func isInheritance(node: NimNode): bool {.compileTime.} =
 
 func toSeq(node: NimNode): seq[string] {.compileTime.} =
   node.expectKind nnkPragma
-  for s in node:
-    result.add s.strVal
+  result = collect(for s in node: s.strVal)
 
 
 func inheritanceClassInfo(

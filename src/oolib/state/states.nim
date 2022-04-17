@@ -33,10 +33,6 @@ func toRecList(s: seq[NimNode]): NimNode {.compileTime.} =
 
 proc genConstant(className: string; node: NimNode): NimNode {.compileTime.} =
   ## Generates both a template for use with typedesc and a method for dynamic dispatch.
-  # dumpAstGen:
-  #   template speed*(self: typedesc[A]): untyped = 10.0f
-  #   method speed*(self: A): typeof(10.0f) {.optBase.} = 10.0f
-
   newStmtList(
     # template
     nnkTemplateDef.newTree(
@@ -56,9 +52,7 @@ proc genConstant(className: string; node: NimNode): NimNode {.compileTime.} =
       ),
       newEmptyNode(),
       newEmptyNode(),
-      newStmtList(
-        node[^1]
-      )
+      newStmtList node[^1]
     ),
     # method
     nnkMethodDef.newTree(
@@ -73,15 +67,9 @@ proc genConstant(className: string; node: NimNode): NimNode {.compileTime.} =
           newEmptyNode(),
       )
     ),
-      nnkPragma.newTree(
-        ident"optBase"
-      ),
+      nnkPragma.newTree ident"optBase",
       newEmptyNode(),
-      newStmtList(
-        nnkReturnStmt.newTree(
-          node[^1]
-        )
-      )
+      newStmtList nnkReturnStmt.newTree(node[^1])
     ),
   )
 
@@ -98,17 +86,16 @@ template newPragmaExpr(node; pragma: string) =
 
 
 func decomposeDefsIntoVars(s: seq[NimNode]): seq[NimNode] {.compileTime.} =
-  for def in s:
-    for v in def[0..^3]:
-      if v.kind == nnkPragmaExpr:
-        result.add v[0]
-        continue
-      result.add v
+  result = collect:
+    for def in s:
+      for v in def[0..^3]:
+        if v.kind == nnkPragmaExpr: v[0]
+        else: v
 
 
 func newSelfStmt(typeName: NimNode): NimNode {.compileTime.} =
   ## Generates `var self = typeName()`.
-  newVarStmt ident"self", newCall(typeName)
+  newVarStmt(ident"self", newCall typeName)
 
 
 func newResultAsgn(rhs: string): NimNode {.compileTime.} =
@@ -131,19 +118,13 @@ func insertBody(
 proc insertArgs(
     constructor: NimNode;
     vars: seq[NimNode]
-): NimNode {.compileTime.} =
+) {.compileTime.} =
   ## Inserts `vars` to constructor args.
-  result = constructor
-  for v in vars[0..^1]:
-    result.params.add(v)
+  vars.applyIt(constructor.params.add it)
 
 
-func replaceReturnTypeWith(
-    constructor,
-    typeName: NimNode
-): NimNode {.compileTime.} =
-  result = constructor
-  result.params[0] = typeName
+func replaceReturnTypeWith(constructor, typeName: NimNode) {.compileTime.} =
+  constructor.params[0] = typeName
 
 
 proc addOldSignatures(
@@ -155,9 +136,9 @@ proc addOldSignatures(
   constructor.name = ident "new"&info.name.strVal
   if info.isPub:
     markWithPostfix(constructor.name)
+  constructor.replaceReturnTypeWith(info.name)
+  constructor.insertArgs(args)
   return constructor
-    .replaceReturnTypeWith(info.name)
-    .insertArgs(args)
 
 
 proc addSignatures(
@@ -169,13 +150,16 @@ proc addSignatures(
   constructor.name = ident"new"
   if info.isPub:
     markWithPostfix(constructor.name)
-  result = constructor
-    .replaceReturnTypeWith(info.name)
-    .insertArgs(args)
-  result.params.insert 1, newIdentDefs(
+  constructor.replaceReturnTypeWith(info.name)
+  constructor.insertArgs(args)
+  constructor.params.insert 1, newIdentDefs(
     ident"_",
-    nnkBracketExpr.newTree(ident"typedesc", info.name)
+    nnkBracketExpr.newTree(
+      ident"typedesc",
+      info.name
+    )
   )
+  return constructor
 
 
 proc assistWithOldDef(
@@ -232,12 +216,11 @@ proc replaceSuper(node: NimNode): NimNode =
   ## Replaces `super.f()` with `procCall Base(self).f()`.
   result = node
   if node.isSuperFunc:
-    result = newTree(
+    return newTree(
       nnkCommand,
       ident "procCall",
       copyNimTree(node)
     )
-    return
   for i, n in node:
     result[i] = n.replaceSuper()
 
@@ -246,9 +229,9 @@ proc genNewBody(
     typeName: NimNode;
     vars: seq[NimNode]
 ): NimNode {.compileTime.} =
-  result = newStmtList newSelfStmt(typeName)
+  result = newStmtList(newSelfStmt typeName)
   for v in vars:
-    result.insert 1, getAst(asgnWith v)
+    result.insert(1, getAst asgnWith(v))
   result.add newResultAsgn"self"
 
 
@@ -286,17 +269,15 @@ proc defNew(info: ClassInfo; args: seq[NimNode]): NimNode =
     markWithPostfix(result.name)
 
 
-func delDefaultValue(node: NimNode): NimNode {.compileTime.} =
-  result = node
-  result[^1] = newEmptyNode()
-
-
 func allArgsList(members: ClassMembers): seq[NimNode] {.compileTime.} =
   members.argsList & members.ignoredArgsList
 
 
 func withoutDefault(argsList: seq[NimNode]): seq[NimNode] =
-  argsList.map delDefaultValue
+  result = collect:
+    for v in argsList:
+      v[^1] = newEmptyNode()
+      v
 
 
 func isEmpty(node: NimNode): bool {.compileTime.} =
@@ -377,9 +358,9 @@ proc getClassMembers(
         result.argsList.add n
     of nnkConstSection:
       for n in node:
-        n.inferValType()
         if not n.hasDefault:
           error "A constant must have a value", node
+        n.inferValType()
         result.constsList.add n
     of nnkProcDef:
       if node.isConstructor:
@@ -497,9 +478,9 @@ proc getClassMembers(
         result.argsList.add n
     of nnkConstSection:
       for n in node:
-        n.inferValType()
         if not n.hasDefault:
           error "A constant must have a value", node
+        n.inferValType()
         result.constsList.add n
     of nnkProcDef:
       if node.isConstructor:

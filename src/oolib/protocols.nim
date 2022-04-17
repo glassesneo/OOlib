@@ -1,5 +1,6 @@
 import
   std/macros,
+  std/sugar,
   util,
   tmpl,
   types
@@ -36,8 +37,7 @@ proc parseProtocolBody*(body: NimNode): ProtocolMembers =
   for node in body:
     case node.kind
     of nnkVarSection:
-      for n in node:
-        result.argsList.add n
+      result.argsList = collect(for n in node: n)
     of nnkProcDef:
       result.procs.add node
     of nnkFuncDef:
