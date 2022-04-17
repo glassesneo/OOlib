@@ -1,20 +1,9 @@
 import
   std/macros,
+  std/sugar,
   util,
-  tmpl
-
-
-type
-  ProtocolKind* = enum
-    Normal
-
-  ProtocolInfo* = tuple
-    isPub: bool
-    kind: ProtocolKind
-    name: NimNode
-
-  ProtocolMembers* = tuple
-    argsList, procs, funcs: seq[NimNode]
+  tmpl,
+  types
 
 
 proc newProtocolInfo(
@@ -48,8 +37,7 @@ proc parseProtocolBody*(body: NimNode): ProtocolMembers =
   for node in body:
     case node.kind
     of nnkVarSection:
-      for n in node:
-        result.argsList.add n
+      result.argsList = collect(for n in node: n)
     of nnkProcDef:
       result.procs.add node
     of nnkFuncDef:
@@ -83,5 +71,8 @@ proc defProtocol*(info: ProtocolInfo, members: ProtocolMembers): NimNode =
   for f in members.funcs:
     result[0][0][2].add f.toTupleMemberFunc()
   if info.isPub:
-    markWithPostfix(result[0][0][0])
-  newPragmaExpr(result[0][0][0], "pProtocol")
+    result[0][0][0] = nnkPostfix.newTree(ident"*", result[0][0][0])
+  result[0][0][0] = nnkPragmaExpr.newTree(
+   result[0][0][0],
+    nnkPragma.newTree(ident "pProtocol")
+  )

@@ -3,12 +3,12 @@ import
   std/sequtils,
   std/sugar,
   .. / util,
-  .. / classes,
+  .. / types,
   .. / tmpl,
   state_interface
 
 
-func hasAsterisk*(node: NimNode): bool {.compileTime.} =
+func hasAsterisk(node: NimNode): bool {.compileTime.} =
   node.kind == nnkPostfix and node[0].eqIdent"*"
 
 
@@ -31,12 +31,8 @@ func toRecList(s: seq[NimNode]): NimNode {.compileTime.} =
     result.add def
 
 
-proc genConstant*(className: string; node: NimNode): NimNode {.compileTime.} =
+proc genConstant(className: string; node: NimNode): NimNode {.compileTime.} =
   ## Generates both a template for use with typedesc and a method for dynamic dispatch.
-  # dumpAstGen:
-  #   template speed*(self: typedesc[A]): untyped = 10.0f
-  #   method speed*(self: A): typeof(10.0f) {.optBase.} = 10.0f
-
   newStmtList(
     # template
     nnkTemplateDef.newTree(
@@ -56,9 +52,7 @@ proc genConstant*(className: string; node: NimNode): NimNode {.compileTime.} =
       ),
       newEmptyNode(),
       newEmptyNode(),
-      newStmtList(
-        node[^1]
-      )
+      newStmtList node[^1]
     ),
     # method
     nnkMethodDef.newTree(
@@ -73,30 +67,230 @@ proc genConstant*(className: string; node: NimNode): NimNode {.compileTime.} =
           newEmptyNode(),
       )
     ),
-      nnkPragma.newTree(
-        ident"optBase"
-      ),
+      nnkPragma.newTree ident"optBase",
       newEmptyNode(),
-      newStmtList(
-        nnkReturnStmt.newTree(
-          node[^1]
-        )
-      )
+      newStmtList nnkReturnStmt.newTree(node[^1])
     ),
   )
 
 
-func isEmpty*(node: NimNode): bool {.compileTime.} =
+template markWithPostfix(node) =
+  node = nnkPostfix.newTree(ident"*", node)
+
+
+template newPragmaExpr(node; pragma: string) =
+  node = nnkPragmaExpr.newTree(
+    node,
+    nnkPragma.newTree(ident pragma)
+  )
+
+
+func decomposeDefsIntoVars(s: seq[NimNode]): seq[NimNode] {.compileTime.} =
+  result = collect:
+    for def in s:
+      for v in def[0..^3]:
+        if v.kind == nnkPragmaExpr: v[0]
+        else: v
+
+
+func newSelfStmt(typeName: NimNode): NimNode {.compileTime.} =
+  ## Generates `var self = typeName()`.
+  newVarStmt(ident"self", newCall typeName)
+
+
+func newResultAsgn(rhs: string): NimNode {.compileTime.} =
+  newAssignment ident"result", ident rhs
+
+
+func insertBody(
+    constructor: NimNode;
+    vars: seq[NimNode]
+): NimNode {.compileTime.} =
+  result = constructor
+  if result.body[0].kind == nnkDiscardStmt:
+    return
+  result.body.insert 0, newSelfStmt(result.params[0])
+  for v in vars.decomposeDefsIntoVars():
+    result.body.insert 1, getAst(asgnWith v)
+  result.body.add newResultAsgn"self"
+
+
+proc insertArgs(
+    constructor: NimNode;
+    vars: seq[NimNode]
+) {.compileTime.} =
+  ## Inserts `vars` to constructor args.
+  vars.applyIt(constructor.params.add it)
+
+
+func replaceReturnTypeWith(constructor, typeName: NimNode) {.compileTime.} =
+  constructor.params[0] = typeName
+
+
+proc addOldSignatures(
+    constructor: NimNode;
+    info: ClassInfo;
+    args: seq[NimNode]
+): NimNode {.compileTime.} =
+  ## Adds signatures to `constructor`.
+  constructor.name = ident "new"&info.name.strVal
+  if info.isPub:
+    markWithPostfix(constructor.name)
+  constructor.replaceReturnTypeWith(info.name)
+  constructor.insertArgs(args)
+  return constructor
+
+
+proc addSignatures(
+    constructor: NimNode;
+    info: ClassInfo;
+    args: seq[NimNode]
+): NimNode {.compileTime.} =
+  ## Adds signatures to `constructor`.
+  constructor.name = ident"new"
+  if info.isPub:
+    markWithPostfix(constructor.name)
+  constructor.replaceReturnTypeWith(info.name)
+  constructor.insertArgs(args)
+  constructor.params.insert 1, newIdentDefs(
+    ident"_",
+    nnkBracketExpr.newTree(
+      ident"typedesc",
+      info.name
+    )
+  )
+  return constructor
+
+
+proc assistWithOldDef(
+    constructor: NimNode;
+    info: ClassInfo;
+    args: seq[NimNode]
+): NimNode {.compileTime.} =
+  ## Adds signatures and insert body to `constructor`.
+  constructor
+    .addOldSignatures(info, args)
+    .insertBody(args)
+
+
+proc assistWithDef(
+    constructor: NimNode;
+    info: ClassInfo;
+    args: seq[NimNode]
+): NimNode {.compileTime.} =
+  ## Adds signatures and insert body to `constructor`.
+  constructor
+    .addSignatures(info, args)
+    .insertBody(args)
+
+
+func rmSelf(theProc: NimNode): NimNode {.compileTime.} =
+  ## Removes `self: typeName` from the 1st of theProc.params.
+  result = theProc.copy
+  result.params.del(1, 1)
+
+
+func newVarsColonExpr(v: NimNode): NimNode {.compileTime.} =
+  newColonExpr(v, newDotExpr(ident"self", v))
+
+
+func newLambdaColonExpr(theProc: NimNode): NimNode {.compileTime.} =
+  ## Generates `name: proc() = self.name()`.
+  var lambdaProc = theProc.rmSelf()
+  let name = lambdaProc[0]
+  lambdaProc[0] = newEmptyNode()
+  lambdaProc.body = newDotExpr(ident"self", name).newCall(
+    lambdaProc.params[1..^1].mapIt(it[0])
+  )
+  result = newColonExpr(name, lambdaProc)
+
+
+func isSuperFunc(node: NimNode): bool {.compileTime.} =
+  ## Returns whether struct is `super.f()` or not.
+  node.kind == nnkCall and
+  node[0].kind == nnkDotExpr and
+  node[0][0].eqIdent"super"
+
+
+proc replaceSuper(node: NimNode): NimNode =
+  ## Replaces `super.f()` with `procCall Base(self).f()`.
+  result = node
+  if node.isSuperFunc:
+    return newTree(
+      nnkCommand,
+      ident "procCall",
+      copyNimTree(node)
+    )
+  for i, n in node:
+    result[i] = n.replaceSuper()
+
+
+proc genNewBody(
+    typeName: NimNode;
+    vars: seq[NimNode]
+): NimNode {.compileTime.} =
+  result = newStmtList(newSelfStmt typeName)
+  for v in vars:
+    result.insert(1, getAst asgnWith(v))
+  result.add newResultAsgn"self"
+
+
+proc defOldNew(info: ClassInfo; args: seq[NimNode]): NimNode =
+  var
+    name = ident "new"&strVal(info.name)
+    params = info.name&args
+    body = genNewBody(
+      info.name,
+      args.decomposeDefsIntoVars()
+    )
+  result = newProc(name, params, body)
+  if info.isPub:
+    markWithPostfix(result.name)
+  result[4] = nnkPragma.newTree(
+    newColonExpr(ident"deprecated", newLit"Use Type.new instead")
+  )
+
+
+proc defNew(info: ClassInfo; args: seq[NimNode]): NimNode =
+  var
+    name = ident"new"
+    params = info.name&(
+      newIdentDefs(
+        ident"_",
+        nnkBracketExpr.newTree(ident"typedesc", info.name)
+      )&args
+    )
+    body = genNewBody(
+      info.name,
+      args.decomposeDefsIntoVars()
+    )
+  result = newProc(name, params, body)
+  if info.isPub:
+    markWithPostfix(result.name)
+
+
+func allArgsList(members: ClassMembers): seq[NimNode] {.compileTime.} =
+  members.argsList & members.ignoredArgsList
+
+
+func withoutDefault(argsList: seq[NimNode]): seq[NimNode] =
+  result = collect:
+    for v in argsList:
+      v[^1] = newEmptyNode()
+      v
+
+
+func isEmpty(node: NimNode): bool {.compileTime.} =
   node.kind == nnkEmpty
 
 
-func hasDefault*(node: NimNode): bool {.compileTime.} =
+func hasDefault(node: NimNode): bool {.compileTime.} =
   ## `node` has to be `nnkIdentDefs` or `nnkConstDef`.
   node.expectKind {nnkIdentDefs, nnkConstDef}
   not node.last.isEmpty
 
 
-func insertSelf*(theProc, typeName: NimNode): NimNode {.compileTime.} =
+func insertSelf(theProc, typeName: NimNode): NimNode {.compileTime.} =
   ## Inserts `self: typeName` in the 1st of theProc.params.
   result = theProc
   result.params.insert 1, newIdentDefs(ident "self", typeName)
@@ -164,9 +358,9 @@ proc getClassMembers(
         result.argsList.add n
     of nnkConstSection:
       for n in node:
-        n.inferValType()
         if not n.hasDefault:
           error "A constant must have a value", node
+        n.inferValType()
         result.constsList.add n
     of nnkProcDef:
       if node.isConstructor:
@@ -284,9 +478,9 @@ proc getClassMembers(
         result.argsList.add n
     of nnkConstSection:
       for n in node:
-        n.inferValType()
         if not n.hasDefault:
           error "A constant must have a value", node
+        n.inferValType()
         result.constsList.add n
     of nnkProcDef:
       if node.isConstructor:
@@ -666,8 +860,8 @@ proc toInterface*(self: ImplementationState): IState {.compileTime.} =
 
 proc newState*(info: ClassInfo): IState {.compileTime.} =
   result = case info.kind
-    of Normal: NormalState().toInterface()
-    of Inheritance: InheritanceState().toInterface()
-    of Distinct: DistinctState().toInterface()
-    of Alias: AliasState().toInterface()
-    of Implementation: ImplementationState().toInterface()
+    of ClassKind.Normal: NormalState().toInterface()
+    of ClassKind.Inheritance: InheritanceState().toInterface()
+    of ClassKind.Distinct: DistinctState().toInterface()
+    of ClassKind.Alias: AliasState().toInterface()
+    of ClassKind.Implementation: ImplementationState().toInterface()
