@@ -4,11 +4,8 @@ discard """
 import ../src/oolib
 import unittest, macros
 
-template customPragma(v = "") {.pragma.}
+template customPragma() {.pragma.}
 
 class A {.customPragma.}
 
-class B {.customPragma "B".}
-
 check A.hasCustomPragma(customPragma)
-check B.getCustomPragmaVal(customPragma) is NimNode
