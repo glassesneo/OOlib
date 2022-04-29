@@ -14,7 +14,6 @@ macro class*(
     head: untyped,
     body: untyped = nnkEmpty.newNimNode
 ): untyped =
-  head.expectKind {nnkIdent, nnkCommand, nnkInfix, nnkCall, nnkPragmaExpr}
   let
     info = getClassInfo(head)
     context = newContext(newState(info))
@@ -39,7 +38,6 @@ proc isClass*[T](instance: T): bool =
 
 
 macro protocol*(head: untyped, body: untyped = newEmptyNode()): untyped =
-  head.expectKind {nnkIdent, nnkInfix}
   let
     info = parseProtocolHead(head)
     members = parseProtocolBody(body)

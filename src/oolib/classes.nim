@@ -13,16 +13,23 @@ func isInheritance(node: NimNode): bool {.compileTime.} =
   node.kind == nnkInfix and node[0].eqIdent"of"
 
 
+func hasGenerics(node: NimNode): bool {.compileTime.} =
+  node.kind == nnkBracketExpr and
+  node[0].kind == nnkIdent and
+  node[1].kind == nnkIdent
+
+
 func toSeq(node: NimNode): seq[string] {.compileTime.} =
   node.expectKind nnkPragma
   result = collect(for s in node: s.strVal)
 
 
-func inheritanceClassInfo(
-    result: var ClassInfo;
+template inheritanceClassInfo(
+    result: ClassInfo;
     node: NimNode
-) {.compileTime.} =
+) =
   if not node.isInheritance: error "Unsupported syntax", node
+  if node[1].hasGenerics: error "Generics can be only in Normal classes for now", node[1]
   result.kind = Inheritance
   if node[2].kind != nnkPragmaExpr:
     # class A of B
@@ -56,6 +63,7 @@ proc getClassInfo*(head: NimNode): ClassInfo {.compileTime.} =
       result.kind = ClassKind.Normal
       result.name = node
     of nnkCall:
+      if node[0].hasGenerics: error "Generics can be only in Normal classes for now", node
       result.name = node[0]
       if node.isDistinct:
         # class A(distinct B)
@@ -74,7 +82,8 @@ proc getClassInfo*(head: NimNode): ClassInfo {.compileTime.} =
         result.kind = Distinct
         result.name = node[0][0]
         result.base = node[0][1][0]
-      elif node[0].kind == nnkCall:
+        return
+      if node[0].kind == nnkCall:
         # class A(B) {.pragma.}
         if "open" in node[1]:
           warning "{.open.} is ignored in a definition of alias", node
@@ -82,9 +91,15 @@ proc getClassInfo*(head: NimNode): ClassInfo {.compileTime.} =
         result.name = node[0][0]
         result.base = node[0][1]
         return
+      if node[0].hasGenerics:
+        # class A[T, U] {.pragma.}
+        result.name = node[0][0]
+        result.generics = node[1..^1]
+        return
       # class A {.pragma.}
       result.name = node[0]
     of nnkCommand:
+      if node[0].hasGenerics: error "Generics can be only in Normal classes for now", node
       if node[1][0].eqIdent"impl":
         result.kind = Implementation
         result.name = node[0]
@@ -97,6 +112,11 @@ proc getClassInfo*(head: NimNode): ClassInfo {.compileTime.} =
         result.base = node[1][1]
         return
       error "Unsupported syntax", node
+    of nnkBracketExpr:
+      # class A[T, U]
+      result.kind = ClassKind.Normal
+      result.name = node[0]
+      result.generics = node[1..^1]
     else:
       error "Unsupported syntax", node
   of 3:

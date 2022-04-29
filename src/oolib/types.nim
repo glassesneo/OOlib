@@ -9,6 +9,7 @@ type
   ClassInfo* = tuple
     isPub: bool
     pragmas: seq[string]
+    generics: seq[NimNode]
     kind: ClassKind
     name, base: NimNode
 

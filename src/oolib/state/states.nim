@@ -124,8 +124,13 @@ proc insertArgs(
     constructor.params.add v
 
 
-func replaceReturnTypeWith(constructor, typeName: NimNode) {.compileTime.} =
-  constructor.params[0] = typeName
+proc nameWithGenerics(info: ClassInfo): NimNode {.compileTime.} =
+  ## Return `name[T, U]` if a class has generics.
+  result = info.name
+  if info.generics != @[]:
+    result = nnkBracketExpr.newTree(
+      result & info.generics
+    )
 
 
 proc addOldSignatures(
@@ -137,7 +142,7 @@ proc addOldSignatures(
   constructor.name = ident "new"&info.name.strVal
   if info.isPub:
     markWithPostfix(constructor.name)
-  constructor.replaceReturnTypeWith(info.name)
+  constructor.params[0] = info.name
   constructor.insertArgs(args)
   return constructor
 
@@ -151,13 +156,13 @@ proc addSignatures(
   constructor.name = ident"new"
   if info.isPub:
     markWithPostfix(constructor.name)
-  constructor.replaceReturnTypeWith(info.name)
+  constructor.params[0] = info.nameWithGenerics
   constructor.insertArgs(args)
   constructor.params.insert 1, newIdentDefs(
     ident"_",
     nnkBracketExpr.newTree(
       ident"typedesc",
-      info.name
+      info.nameWithGenerics
     )
   )
   return constructor
@@ -180,6 +185,11 @@ proc assistWithDef(
     args: seq[NimNode]
 ): NimNode {.compileTime.} =
   ## Adds signatures and insert body to `constructor`.
+  constructor[2] = nnkGenericParams.newTree(
+    nnkIdentDefs.newTree(
+      info.generics & newEmptyNode() & newEmptyNode()
+    )
+  )
   constructor
     .addSignatures(info, args)
     .insertBody(args)
@@ -255,17 +265,22 @@ proc defOldNew(info: ClassInfo; args: seq[NimNode]): NimNode =
 proc defNew(info: ClassInfo; args: seq[NimNode]): NimNode =
   var
     name = ident"new"
-    params = info.name&(
+    params = info.nameWithGenerics&(
       newIdentDefs(
         ident"_",
-        nnkBracketExpr.newTree(ident"typedesc", info.name)
+        nnkBracketExpr.newTree(ident"typedesc", info.nameWithGenerics)
       )&args
     )
     body = genNewBody(
-      info.name,
+      info.nameWithGenerics,
       args.decomposeDefsIntoVars()
     )
   result = newProc(name, params, body)
+  result[2] = nnkGenericParams.newTree(
+    nnkIdentDefs.newTree(
+      info.generics & newEmptyNode() & newEmptyNode()
+    )
+  )
   if info.isPub:
     markWithPostfix(result.name)
 
@@ -294,7 +309,7 @@ func hasDefault(node: NimNode): bool {.compileTime.} =
 func insertSelf(theProc, typeName: NimNode): NimNode {.compileTime.} =
   ## Inserts `self: typeName` in the 1st of theProc.params.
   result = theProc
-  result.params.insert 1, newIdentDefs(ident "self", typeName)
+  result.params.insert 1, newIdentDefs(ident"self", typeName)
 
 
 func inferValType(node: NimNode) {.compileTime.} =
@@ -353,6 +368,8 @@ proc getClassMembers(
       for n in node:
         if "noNewDef" in info.pragmas and n.hasDefault:
           error "default values cannot be used with {.noNewDef.}", n
+        if info.generics.anyIt(it.eqIdent n[^2]):
+          error "A member variable with generic type is not supported for now"
         n.inferValType()
         if n.hasPragma and "ignored" in n[0][1]:
           error "{.ignored.} pragma cannot be used in non-implemented classes"
@@ -361,6 +378,8 @@ proc getClassMembers(
       for n in node:
         if not n.hasDefault:
           error "A constant must have a value", node
+        if info.generics.anyIt(it.eqIdent n):
+          error "A constant with generic type cannot be used"
         n.inferValType()
         result.constsList.add n
     of nnkProcDef:
@@ -374,9 +393,9 @@ proc getClassMembers(
         else:
           error "Constructor already exists", node
       else:
-        result.body.add node.insertSelf(info.name)
+        result.body.add node.insertSelf(info.nameWithGenerics)
     of nnkMethodDef, nnkFuncDef, nnkIteratorDef, nnkConverterDef, nnkTemplateDef:
-      result.body.add node.insertSelf(info.name)
+      result.body.add node.insertSelf(info.nameWithGenerics)
     else:
       discard
 
@@ -387,6 +406,12 @@ proc defClass(
     info: ClassInfo
 ) {.compileTime.} =
   theClass.add(getAst defObj(info.name))
+  if info.generics != @[]:
+    theClass[0][0][1] = nnkGenericParams.newTree(
+      nnkIdentDefs.newTree(
+        info.generics & newEmptyNode() & newEmptyNode()
+      )
+    )
   if info.isPub:
     markWithPostfix(theClass[0][0][0])
   if "open" in info.pragmas:
@@ -405,21 +430,21 @@ proc defConstructor(
   theClass.insert(
     1,
     if members.ctorBase.isEmpty:
-      info.defOldNew(members.allArgsList.map rmAsteriskFromIdent)
+      info.defOldNew(members.argsList.map rmAsteriskFromIdent)
     else:
       members.ctorBase.assistWithOldDef(
         info,
-        members.allArgsList.filter(hasDefault).map rmAsteriskFromIdent
+        members.argsList.filter(hasDefault).map rmAsteriskFromIdent
       )
   )
   theClass.insert(
     1,
     if members.ctorBase2.isEmpty:
-      info.defNew(members.allArgsList.map rmAsteriskFromIdent)
+      info.defNew(members.argsList.map rmAsteriskFromIdent)
     else:
       members.ctorBase2.assistWithDef(
         info,
-        members.allArgsList.filter(hasDefault).map rmAsteriskFromIdent
+        members.argsList.filter(hasDefault).map rmAsteriskFromIdent
       )
   )
 
@@ -429,7 +454,7 @@ proc defMemberVars(
     theClass: NimNode;
     members: ClassMembers
 ) {.compileTime.} =
-  theClass[0][0][2][0][2] = members.allArgsList.withoutDefault().toRecList()
+  theClass[0][0][2][0][2] = members.argsList.withoutDefault().toRecList()
 
 
 proc defMemberRoutines(
@@ -524,11 +549,11 @@ proc defConstructor(
   if not (members.ctorBase.isEmpty or "noNewDef" in info.pragmas):
     theClass.insert 1, members.ctorBase.assistWithOldDef(
       info,
-      members.allArgsList.filter(hasDefault).map rmAsteriskFromIdent
+      members.argsList.filter(hasDefault).map rmAsteriskFromIdent
     )
     theClass.insert 1, members.ctorBase2.assistWithDef(
       info,
-      members.allArgsList.filter(hasDefault).map rmAsteriskFromIdent
+      members.argsList.filter(hasDefault).map rmAsteriskFromIdent
     )
 
 
@@ -537,7 +562,7 @@ proc defMemberVars(
     theClass: NimNode;
     members: ClassMembers
 ) {.compileTime.} =
-  theClass[0][0][2][0][2] = members.allArgsList.withoutDefault().toRecList()
+  theClass[0][0][2][0][2] = members.argsList.withoutDefault().toRecList()
 
 
 proc defMemberRoutines(
