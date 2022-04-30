@@ -4,8 +4,7 @@ discard """
 import ../src/oolib
 import unittest
 
-class A:
-  discard
+class A
 
 type B = ref object
 
