@@ -19,8 +19,8 @@ class pub B of A:
   proc `new`(pos = 0f): B =
     self.pos = pos
 
-var a = newA(pos = 5f)
-var b = newB(pos = 10f)
+var a = A.new(pos = 5f)
+var b = B.new(pos = 10f)
 
 check b.speed > a.speed
 
