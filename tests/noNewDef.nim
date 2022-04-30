@@ -8,4 +8,4 @@ class A {.noNewDef.}:
   var a: int
   var b: string
 
-check not defined(newA)
+check not compiles(A.new(1, ""))
