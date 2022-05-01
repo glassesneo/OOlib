@@ -8,16 +8,13 @@
 
 **OOlib is currently work in progress**🔥
 
-
 ## 🗺Overview
 OOlib is a nimble package for object oriented programming.
-
 
 ## 📜Usage
 ```nim
 import strformat
 import oolib
-
 
 # add `pub` prefix to export class
 class pub Person:
@@ -31,42 +28,34 @@ class pub Person:
   proc happyBirthday* =
     inc self.age
 
-
 # auto define constructor
-let p1 = newPerson("Tony")
-let p2 = newPerson("Steve", 100)
+let p1 = Person.new("Tony")
+let p2 = Person.new("Steve", 100)
 ```
-
 
 ## ✨Features
 - Member variables with default values
 - Class data constants
 - Definition of `proc`, `method`, `func`, etc... (the only exception being `macro`)
-- Auto inserting `self` as first argument
-- Auto definition of constructor (high performance!)
-- Assistance with constructor definition
-- `pub` modifier instead of `*`
-- Inheritance with `of` modifier
-- Creating distinct type with `distinct` modifier
-- `{.final.}` by default
-- `{.open.}` to allow inheritance
+- Auto definition of constructor
+- Support for inheritance, distinct, alias
 - `super` keyword for `method`
-- Alias class
+- `{.final.}` by default
+- `protocol` that provide interfaces for `class`
+
+### details
+See [Wiki](https://github.com/Glasses-Neo/OOlib/wiki)
 
 ### 💭Planned
-- `Pick` like TypeScript's `Pick`
-- `let` member variables
 - `struct`
-- `protocol`
-
+- setter / getter
+- `dataclass` like Kotlin's `data class`
 
 ## Changelog
 See [CHANGELOG](https://github.com/Glasses-Neo/OOlib/blob/develop/CHANGELOG.md)
 
-
 ## 🥷Author
 [![Twitter](https://img.shields.io/twitter/follow/Glassesman10.svg?style=social&label=@Glassesman10)](https://twitter.com/Glassesman10)
-
 
 ## License
 Copyright © 2021 Neo meganeo.programmer@gmail.com
