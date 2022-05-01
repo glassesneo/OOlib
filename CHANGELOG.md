@@ -7,13 +7,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## [Unreleased]
 ### Added
 - `protocol` that defines a tuple for an interface [#76](https://github.com/Glasses-Neo/OOlib/issues/76)
-  - `toInterface` is used for implementation of interfaces
+  - `toInterface` is used for interface implementations
   - Properties marked with `{.ignored.}` is ignored when interfaces are implemented
   - `isProtocol` to check a type is protocol or not
 - Omission of body [#85](https://github.com/Glasses-Neo/OOlib/issues/85)
   - `class` and `protocol` are now called without their bodies
 - Alternative constructor [#77](https://github.com/Glasses-Neo/OOlib/issues/77)
   - `newType` is now deprecated. Use `Type.new` instead
+- Support for generics [#93](https://github.com/Glasses-Neo/OOlib/issues/93)
 
 ## [v0.3.0] - 2021-10-16
 ### Added
