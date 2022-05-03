@@ -4,7 +4,6 @@
 ![contributors](https://img.shields.io/github/contributors/Glasses-Neo/OOlib?color=important)
 ![stars](https://img.shields.io/github/stars/Glasses-Neo/OOlib?style=social)
 
-![icon](./oolib.png)
 
 **OOlib is currently work in progress**🔥
 
