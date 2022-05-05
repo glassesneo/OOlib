@@ -1,7 +1,16 @@
-import macros
+import
+  std/macros
 
 
 template pClass* {.pragma.}
+  ## Is used as pragma.
+
+
+template pProtocol* {.pragma.}
+  ## Is used as pragma.
+
+
+template ignored* {.pragma.}
   ## Is used as pragma.
 
 
