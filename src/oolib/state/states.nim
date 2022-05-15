@@ -25,6 +25,24 @@ proc rmAsteriskFromIdent(def: NimNode): NimNode {.compileTime.} =
   result.add(def[^2], def[^1])
 
 
+proc rmAsteriskFromProcs(p: NimNode): NimNode {.compileTime.} =
+  result = p
+  result[0] = p[0].rmAsterisk()
+
+
+proc rmPragmas(node: NimNode): NimNode {.compileTime.} =
+  result = node
+  if node.kind == nnkPragmaExpr:
+    result = node[0]
+
+
+proc rmPragmasFromIdent(def: NimNode): NimNode {.compileTime.} =
+  result = nnkIdentDefs.newNimNode()
+  for v in def[0..^3]:
+    result.add v.rmPragmas()
+  result.add(def[^2], def[^1])
+
+
 func toRecList(s: seq[NimNode]): NimNode {.compileTime.} =
   result = nnkRecList.newNimNode()
   for def in s:
@@ -815,21 +833,29 @@ proc defConstructor(
   theClass.insert(
     1,
     if members.ctorBase.isEmpty:
-      info.defOldNew(members.allArgsList.map rmAsteriskFromIdent)
+      info.defOldNew(
+        members.allArgsList.mapIt(it.rmPragmasFromIdent.rmAsteriskFromIdent)
+      )
     else:
       members.ctorBase.assistWithOldDef(
         info,
-        members.allArgsList.filter(hasDefault).map rmAsteriskFromIdent
+        members.allArgsList.filter(hasDefault).mapIt(
+          it.rmPragmasFromIdent.rmAsteriskFromIdent
+        )
       )
   )
   theClass.insert(
     1,
     if members.ctorBase2.isEmpty:
-      info.defNew(members.allArgsList.map rmAsteriskFromIdent)
+      info.defNew(
+        members.allArgsList.mapIt(it.rmPragmasFromIdent.rmAsteriskFromIdent)
+      )
     else:
       members.ctorBase2.assistWithDef(
         info,
-        members.allArgsList.filter(hasDefault).map rmAsteriskFromIdent
+        members.allArgsList.filter(hasDefault).mapIt(
+          it.rmPragmasFromIdent.rmAsteriskFromIdent
+        )
       )
   )
 
@@ -856,12 +882,14 @@ proc defMemberRoutines(
     newStmtList(
       nnkReturnStmt.newNimNode.add(
         nnkTupleConstr.newNimNode.add(
-          members.argsList.decomposeDefsIntoVars().map newVarsColonExpr
-    ).add(
+          members.argsList.map(rmAsteriskFromIdent).decomposeDefsIntoVars().map(newVarsColonExpr)
+      ).add(
         members.body.filterIt(
-          it.kind in {nnkProcDef, nnkFuncDef, nnkMethodDef, nnkIteratorDef}
-      ).filterIt("ignored" notin it[4]).map newLambdaColonExpr
-    )
+          it.kind == nnkProcDef and "ignored" notin it[4]
+        ).mapIt(
+          it.rmAsteriskFromProcs.newLambdaColonExpr
+        )
+      )
     )
     )
   ).insertSelf(info.name)
