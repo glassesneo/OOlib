@@ -10,29 +10,44 @@ protocol Animal:
   proc roar()
 
 class Cat impl Animal:
-  var scientificName: string
-  var name {.ignored.}: string
+  var scientificName*: string
+  var name* {.ignored.}: string
 
-  proc breathe() =
+  proc breathe*() =
     echo "breathed!"
 
-  proc roar() =
+  proc roar*() =
     echo "meow!"
 
 class Dog impl Animal:
   var scientificName: string
   var name {.ignored.}: string
 
-  proc breathe() =
+  proc breathe*() =
     echo "breathed!"
 
-  proc roar() =
+  proc roar*() =
     echo "bark!"
 
-let cat = Cat.new("Felis catus", "Leo").toInterface()
-let dog = Dog.new("Canis lupus familiaris", "Wolf").toInterface()
+  proc walk() {.ignored.} =
+    echo "walk!"
+
+let cat = Cat.new("Felis catus", "Leo")
+let dog = Dog.new("Canis lupus familiaris", "Wolf")
 
 cat.breathe()
 cat.roar()
 dog.breathe()
 dog.roar()
+dog.walk()
+
+proc echoName(animals: seq[Animal]) =
+  for a in animals:
+    echo a.scientificName
+
+let animals = @[
+  cat.toInterface(),
+  dog.toInterface()
+]
+
+echoName(animals)
