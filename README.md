@@ -40,7 +40,7 @@ let p2 = Person.new("Steve", 100)
 - Support for inheritance, distinct, alias
 - `super` keyword for `method`
 - `{.final.}` by default
-- `protocol` that provide interfaces for `class`
+- `protocol` that provides interfaces for `class`
 
 ### details
 See [Wiki](https://github.com/Glasses-Neo/OOlib/wiki)
