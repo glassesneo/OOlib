@@ -876,7 +876,7 @@ proc defMemberRoutines(
 ) {.compileTime.} =
   for c in members.constsList:
     theClass.insert 1, genConstant(info.name.strVal, c)
-  theClass.add newProc(
+  let interfaceProc = newProc(
     ident"toInterface",
     [info.base],
     newStmtList(
@@ -893,6 +893,11 @@ proc defMemberRoutines(
     )
     )
   ).insertSelf(info.name)
+  theClass.add quote do:
+    when compiles(`interfaceProc`):
+      `interfaceProc`
+    else:
+      {.error: "Some properties are missing".}
 
 
 proc toInterface*(self: ImplementationState): IState {.compileTime.} =
