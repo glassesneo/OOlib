@@ -129,7 +129,8 @@ func insertBody(
     return
   result.body.insert 0, newSelfStmt(result.params[0])
   for v in vars.decomposeDefsIntoVars():
-    result.body.insert 1, getAst(asgnWith v)
+    result.body.insert 1, quote do:
+      self.`v` = `v`
   result.body.add newResultAsgn"self"
 
 
@@ -260,7 +261,8 @@ proc genNewBody(
 ): NimNode {.compileTime.} =
   result = newStmtList(newSelfStmt typeName)
   for v in vars:
-    result.insert(1, getAst asgnWith(v))
+    result.insert 1, quote do:
+      self.`v` = `v`
   result.add newResultAsgn"self"
 
 
@@ -372,6 +374,25 @@ type
   ImplementationState* = ref object
 
 
+template generateToInterface(t) =
+  proc toInterface*(self: t): IState {.compileTime.} =
+    result = (
+      getClassMembers:
+      proc(body: NimNode; info: ClassInfo): ClassMembers =
+        self.getClassMembers(body, info),
+      defClass: proc(theClass: NimNode; info: ClassInfo) =
+        self.defClass(theClass, info),
+      defConstructor:
+      proc(theClass: NimNode; info: ClassInfo; members: ClassMembers) =
+        self.defConstructor(theClass, info, members),
+      defMemberVars: proc(theClass: NimNode; members: ClassMembers) =
+        self.defMemberVars(theClass, members),
+      defMemberRoutines:
+      proc(theClass: NimNode; info: ClassInfo; members: ClassMembers) =
+        self.defMemberRoutines(theClass, info, members)
+    )
+
+
 proc getClassMembers(
   self: NormalState;
   body: NimNode;
@@ -423,18 +444,19 @@ proc defClass(
     theClass: NimNode;
     info: ClassInfo
 ) {.compileTime.} =
-  theClass.add(getAst defObj(info.name))
+  var classNode = getAst defObj(info.name)
   if info.generics != @[]:
-    theClass[0][0][1] = nnkGenericParams.newTree(
+    classNode[0][1] = nnkGenericParams.newTree(
       nnkIdentDefs.newTree(
         info.generics & newEmptyNode() & newEmptyNode()
       )
     )
   if info.isPub:
-    markWithPostfix(theClass[0][0][0])
+    markWithPostfix(classNode[0][0])
   if "open" in info.pragmas:
-    theClass[0][0][2][0][1] = nnkOfInherit.newTree ident"RootObj"
-  newPragmaExpr(theClass[0][0][0], "pClass")
+    classNode[0][2][0][1] = nnkOfInherit.newTree ident"RootObj"
+  newPragmaExpr(classNode[0][0], "pClass")
+  theClass.add classNode
 
 
 proc defConstructor(
@@ -485,21 +507,6 @@ proc defMemberRoutines(
     theClass.insert 1, genConstant(info.name.strVal, c)
 
 
-proc toInterface*(self: NormalState): IState {.compileTime.} =
-  result = (
-    getClassMembers:
-    (body: NimNode, info: ClassInfo) => self.getClassMembers(body, info),
-    defClass: (theClass: NimNode, info: ClassInfo) => self.defClass(theClass, info),
-    defConstructor:
-    (theClass: NimNode, info: ClassInfo, members: ClassMembers) =>
-      self.defConstructor(theClass, info, members),
-    defMemberVars: (theClass: NimNode, members: ClassMembers) =>
-      self.defMemberVars(theClass, members),
-    defMemberRoutines: (theClass: NimNode, info: ClassInfo,
-        members: ClassMembers) =>
-      self.defMemberRoutines(theClass, info, members)
-
-  )
 
 
 proc getClassMembers(
@@ -552,10 +559,11 @@ proc defClass(
     theClass: NimNode;
     info: ClassInfo
 ) {.compileTime.} =
-  theClass.add getAst defObjWithBase(info.name, info.base)
+  var classNode = getAst defObjWithBase(info.name, info.base)
   if info.isPub:
-    markWithPostfix(theClass[0][0][0])
-  newPragmaExpr(theClass[0][0][0], "pClass")
+    markWithPostfix(classNode[0][0])
+  newPragmaExpr(classNode[0][0], "pClass")
+  theClass.add classNode
 
 
 proc defConstructor(
@@ -593,20 +601,6 @@ proc defMemberRoutines(
     theClass.insert 1, genConstant(info.name.strVal, c)
 
 
-proc toInterface*(self: InheritanceState): IState {.compileTime.} =
-  result = (
-    getClassMembers:
-    (body: NimNode, info: ClassInfo) => self.getClassMembers(body, info),
-    defClass: (theClass: NimNode, info: ClassInfo) => self.defClass(theClass, info),
-    defConstructor:
-    (theClass: NimNode, info: ClassInfo, members: ClassMembers) =>
-      self.defConstructor(theClass, info, members),
-    defMemberVars: (theClass: NimNode, members: ClassMembers) =>
-      self.defMemberVars(theClass, members),
-    defMemberRoutines: (theClass: NimNode, info: ClassInfo,
-        members: ClassMembers) =>
-      self.defMemberRoutines(theClass, info, members)
-  )
 
 
 proc getClassMembers(
@@ -636,13 +630,14 @@ proc defClass(
     theClass: NimNode;
     info: ClassInfo
 ) {.compileTime.} =
-  theClass.add getAst defDistinct(info.name, info.base)
+  var classNode = getAst defDistinct(info.name, info.base)
   if info.isPub:
-    markWithPostfix(theClass[0][0][0][0])
+    markWithPostfix(classNode[0][0][0])
   if "open" in info.pragmas:
     # replace {.final.} with {.inheritable.}
-    theClass[0][0][0][1][0] = ident "inheritable"
-    theClass[0][0][0][1].add ident "pClass"
+    classNode[0][0][1][0] = ident "inheritable"
+    classNode[0][0][1].add ident "pClass"
+  theClass.add classNode
 
 
 proc defConstructor(
@@ -672,22 +667,6 @@ proc defMemberRoutines(
     theClass.insert 1, genConstant(info.name.strVal, c)
 
 
-proc toInterface*(self: DistinctState): IState {.compileTime.} =
-  result = (
-    getClassMembers:
-    (body: NimNode, info: ClassInfo) => self.getClassMembers(body, info),
-    defClass: (theClass: NimNode, info: ClassInfo) => self.defClass(theClass, info),
-    defConstructor:
-    (theClass: NimNode, info: ClassInfo, members: ClassMembers) =>
-      self.defConstructor(theClass, info, members),
-    defMemberVars: (theClass: NimNode, members: ClassMembers) =>
-      self.defMemberVars(theClass, members),
-    defMemberRoutines: (theClass: NimNode, info: ClassInfo,
-        members: ClassMembers) =>
-      self.defMemberRoutines(theClass, info, members)
-
-
-  )
 
 
 proc getClassMembers(
@@ -717,10 +696,11 @@ proc defClass(
     theClass: NimNode;
     info: ClassInfo
 ) {.compileTime.} =
-  theClass.add getAst defAlias(info.name, info.base)
+  var classNode = getAst defAlias(info.name, info.base)
   if info.isPub:
-    markWithPostfix(theClass[0][0][0])
-  newPragmaExpr(theClass[0][0][0], "pClass")
+    markWithPostfix(classNode[0][0])
+  newPragmaExpr(classNode[0][0], "pClass")
+  theClass.add classNode
 
 
 proc defConstructor(
@@ -750,22 +730,6 @@ proc defMemberRoutines(
     theClass.insert 1, genConstant(info.name.strVal, c)
 
 
-proc toInterface*(self: AliasState): IState {.compileTime.} =
-  result = (
-    getClassMembers:
-    (body: NimNode, info: ClassInfo) => self.getClassMembers(body, info),
-    defClass: (theClass: NimNode, info: ClassInfo) => self.defClass(theClass, info),
-    defConstructor:
-    (theClass: NimNode, info: ClassInfo, members: ClassMembers) =>
-      self.defConstructor(theClass, info, members),
-    defMemberVars: (theClass: NimNode, members: ClassMembers) =>
-      self.defMemberVars(theClass, members),
-    defMemberRoutines: (theClass: NimNode, info: ClassInfo,
-        members: ClassMembers) =>
-      self.defMemberRoutines(theClass, info, members)
-
-
-  )
 
 
 proc getClassMembers(
@@ -816,10 +780,11 @@ proc defClass(
     theClass: NimNode;
     info: ClassInfo
 ) {.compileTime.} =
-  theClass.add getAst defObj(info.name)
+  var classNode = getAst defObj(info.name)
   if info.isPub:
-    markWithPostfix(theClass[0][0][0])
-  newPragmaExpr(theClass[0][0][0], "pClass")
+    markWithPostfix(classNode[0][0])
+  newPragmaExpr(classNode[0][0], "pClass")
+  theClass.add classNode
 
 
 proc defConstructor(
@@ -900,21 +865,11 @@ proc defMemberRoutines(
       {.error: "Some properties are missing".}
 
 
-proc toInterface*(self: ImplementationState): IState {.compileTime.} =
-  result = (
-    getClassMembers:
-    (body: NimNode, info: ClassInfo) => self.getClassMembers(body, info),
-    defClass: (theClass: NimNode, info: ClassInfo) => self.defClass(theClass, info),
-    defConstructor:
-    (theClass: NimNode, info: ClassInfo, members: ClassMembers) =>
-      self.defConstructor(theClass, info, members),
-    defMemberVars: (theClass: NimNode, members: ClassMembers) =>
-      self.defMemberVars(theClass, members),
-    defMemberRoutines: (theClass: NimNode, info: ClassInfo,
-        members: ClassMembers) =>
-      self.defMemberRoutines(theClass, info, members)
-
-  )
+generateToInterface NormalState
+generateToInterface InheritanceState
+generateToInterface DistinctState
+generateToInterface AliasState
+generateToInterface ImplementationState
 
 
 proc newState*(info: ClassInfo): IState {.compileTime.} =
