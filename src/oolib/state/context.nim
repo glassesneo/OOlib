@@ -28,27 +28,10 @@ proc defClass*(
   self.state.defClass(theClass, info)
 
 
-proc defConstructor*(
+proc defBody*(
     self: Context,
     theClass: NimNode,
     info: ClassInfo,
     members: ClassMembers
 ) {.compileTime.} =
-  self.state.defConstructor(theClass, info, members)
-
-
-proc defMemberVars*(
-    self: Context,
-    theClass: NimNode,
-    members: ClassMembers
-) {.compileTime.} =
-  self.state.defMemberVars(theClass, members)
-
-
-proc defMemberRoutines*(
-    self: Context,
-    theClass: NimNode,
-    info: ClassInfo,
-    members: ClassMembers
-) {.compileTime.} =
-  self.state.defMemberRoutines(theClass, info, members)
+  self.state.defBody(theClass, info, members)

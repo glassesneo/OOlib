@@ -69,8 +69,6 @@ proc defProtocol*(info: ProtocolInfo, members: ProtocolMembers): NimNode =
     result[0][0][2].add v
   for p in members.procs:
     result[0][0][2].add p.toTupleMemberProc()
-  #for f in members.funcs:
-  #  result[0][0][2].add f.toTupleMemberFunc()
   if info.isPub:
     result[0][0][0] = nnkPostfix.newTree(ident"*", result[0][0][0])
   result[0][0][0] = nnkPragmaExpr.newTree(

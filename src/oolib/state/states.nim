@@ -316,14 +316,10 @@ func withoutDefault(argsList: seq[NimNode]): seq[NimNode] =
       v
 
 
-func isEmpty(node: NimNode): bool {.compileTime.} =
-  node.kind == nnkEmpty
-
-
 func hasDefault(node: NimNode): bool {.compileTime.} =
   ## `node` has to be `nnkIdentDefs` or `nnkConstDef`.
   node.expectKind {nnkIdentDefs, nnkConstDef}
-  not node.last.isEmpty
+  not (node.last.kind == nnkEmpty)
 
 
 func insertSelf(theProc, typeName: NimNode): NimNode {.compileTime.} =
@@ -335,7 +331,7 @@ func insertSelf(theProc, typeName: NimNode): NimNode {.compileTime.} =
 func addNoSideEffectPragma(theProc: NimNode) {.compileTime.} =
   ## Adds `noSideEffect` pragma to theProc.
   theProc.expectKind nnkProcDef
-  if theProc[4].isEmpty:
+  if theProc[4].kind == nnkEmpty:
     theProc[4] = nnkPragma.newTree(
       ident"noSideEffect"
     )
@@ -408,7 +404,10 @@ template generateToInterface(t) =
         self.defMemberVars(theClass, members),
       defMemberRoutines:
       proc(theClass: NimNode; info: ClassInfo; members: ClassMembers) =
-        self.defMemberRoutines(theClass, info, members)
+        self.defMemberRoutines(theClass, info, members),
+      defBody:
+      proc(theClass: NimNode; info: ClassInfo; members: ClassMembers) =
+        self.defBody(theClass, info, members)
     )
 
 
@@ -442,7 +441,7 @@ proc getClassMembers(
         result.constsList.add n
     of nnkProcDef:
       if node.isConstructor:
-        if result.ctorBase.isEmpty:
+        if result.ctorBase.kind == nnkEmpty:
           result.ctorBase = node.copy()
           result.ctorBase[4] = nnkPragma.newTree(
             newColonExpr(ident"deprecated", newLit"Use Type.new instead")
@@ -488,7 +487,7 @@ proc defConstructor(
     return
   theClass.insert(
     1,
-    if members.ctorBase.isEmpty:
+    if members.ctorBase.kind == nnkEmpty:
       info.defOldNew(members.argsList.map rmAsteriskFromIdent)
     else:
       members.ctorBase.assistWithOldDef(
@@ -498,7 +497,7 @@ proc defConstructor(
   )
   theClass.insert(
     1,
-    if members.ctorBase2.isEmpty:
+    if members.ctorBase2.kind == nnkEmpty:
       info.defNew(members.argsList.map rmAsteriskFromIdent)
     else:
       members.ctorBase2.assistWithDef(
@@ -524,6 +523,17 @@ proc defMemberRoutines(
 ) {.compileTime.} =
   for c in members.constsList:
     theClass.insert 1, genConstant(info.name.strVal, c)
+
+
+proc defBody(
+    self: NormalState;
+    theClass: NimNode;
+    info: ClassInfo;
+    members: ClassMembers
+) {.compileTime.} =
+  self.defConstructor(theClass, info, members)
+  self.defMemberVars(theClass, members)
+  self.defMemberRoutines(theClass, info, members)
 
 
 proc getClassMembers(
@@ -552,7 +562,7 @@ proc getClassMembers(
         result.constsList.add n
     of nnkProcDef:
       if node.isConstructor:
-        if result.ctorBase.isEmpty:
+        if result.ctorBase.kind == nnkEmpty:
           result.ctorBase = node.copy()
           result.ctorBase[4] = nnkPragma.newTree(
             newColonExpr(ident"deprecated", newLit"Use Type.new instead")
@@ -589,7 +599,7 @@ proc defConstructor(
     info: ClassInfo;
     members: ClassMembers
 ) {.compileTime.} =
-  if not (members.ctorBase.isEmpty or "noNewDef" in info.pragmas):
+  if not (members.ctorBase.kind == nnkEmpty or "noNewDef" in info.pragmas):
     theClass.insert 1, members.ctorBase.assistWithOldDef(
       info,
       members.argsList.filter(hasDefault).map rmAsteriskFromIdent
@@ -616,6 +626,17 @@ proc defMemberRoutines(
 ) {.compileTime.} =
   for c in members.constsList:
     theClass.insert 1, genConstant(info.name.strVal, c)
+
+
+proc defBody(
+    self: InheritanceState;
+    theClass: NimNode;
+    info: ClassInfo;
+    members: ClassMembers
+) {.compileTime.} =
+  self.defConstructor(theClass, info, members)
+  self.defMemberVars(theClass, members)
+  self.defMemberRoutines(theClass, info, members)
 
 
 proc getClassMembers(
@@ -682,6 +703,17 @@ proc defMemberRoutines(
     theClass.insert 1, genConstant(info.name.strVal, c)
 
 
+proc defBody(
+    self: DistinctState;
+    theClass: NimNode;
+    info: ClassInfo;
+    members: ClassMembers
+) {.compileTime.} =
+  self.defConstructor(theClass, info, members)
+  self.defMemberVars(theClass, members)
+  self.defMemberRoutines(theClass, info, members)
+
+
 proc getClassMembers(
   self: AliasState;
   body: NimNode;
@@ -743,6 +775,17 @@ proc defMemberRoutines(
     theClass.insert 1, genConstant(info.name.strVal, c)
 
 
+proc defBody(
+    self: AliasState;
+    theClass: NimNode;
+    info: ClassInfo;
+    members: ClassMembers
+) {.compileTime.} =
+  self.defConstructor(theClass, info, members)
+  self.defMemberVars(theClass, members)
+  self.defMemberRoutines(theClass, info, members)
+
+
 proc getClassMembers(
   self: ImplementationState;
   body: NimNode;
@@ -770,7 +813,7 @@ proc getClassMembers(
         result.constsList.add n
     of nnkProcDef:
       if node.isConstructor:
-        if result.ctorBase.isEmpty:
+        if result.ctorBase.kind == nnkEmpty:
           result.ctorBase = node.copy()
           result.ctorBase[4] = nnkPragma.newTree(
             newColonExpr(ident"deprecated", newLit"Use Type.new instead")
@@ -810,7 +853,7 @@ proc defConstructor(
     return
   theClass.insert(
     1,
-    if members.ctorBase.isEmpty:
+    if members.ctorBase.kind == nnkEmpty:
       info.defOldNew(
         members.allArgsList.mapIt(it.rmPragmasFromIdent.rmAsteriskFromIdent)
       )
@@ -824,7 +867,7 @@ proc defConstructor(
   )
   theClass.insert(
     1,
-    if members.ctorBase2.isEmpty:
+    if members.ctorBase2.kind == nnkEmpty:
       info.defNew(
         members.allArgsList.mapIt(it.rmPragmasFromIdent.rmAsteriskFromIdent)
       )
@@ -872,11 +915,21 @@ proc defMemberRoutines(
     )
   ).insertSelf(info.name)
   theClass.add quote do:
-    `interfaceProc`
-    # when compiles(`interfaceProc`):
-    #  `interfaceProc`
-    # else:
-    #  {.error: "Some properties are missing".}
+    when compiles(`interfaceProc`):
+      `interfaceProc`
+    else:
+      {.error: "Some properties are missing".}
+
+
+proc defBody(
+    self: ImplementationState;
+    theClass: NimNode;
+    info: ClassInfo;
+    members: ClassMembers
+) {.compileTime.} =
+  self.defConstructor(theClass, info, members)
+  self.defMemberVars(theClass, members)
+  self.defMemberRoutines(theClass, info, members)
 
 
 generateToInterface NormalState
