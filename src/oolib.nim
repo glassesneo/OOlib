@@ -12,7 +12,7 @@ export
 
 macro class*(
     head: untyped,
-    body: untyped = nnkEmpty.newNimNode
+    body: untyped = newEmptyNode()
 ): untyped =
   let
     info = getClassInfo(head)
@@ -23,6 +23,7 @@ macro class*(
   theClass.add members.body.copy()
   context.defBody(theClass, info, members)
   result = theClass
+  echo result.repr
 
 
 proc isClass*(T: typedesc): bool =

@@ -12,34 +12,24 @@ func hasAsterisk(node: NimNode): bool {.compileTime.} =
   node.kind == nnkPostfix and node[0].eqIdent"*"
 
 
-func rmAsterisk(node: NimNode): NimNode {.compileTime.} =
-  result = node
-  if node.hasAsterisk:
-    result = node[1]
-
-
 proc rmAsteriskFromIdent(def: NimNode): NimNode {.compileTime.} =
   result = nnkIdentDefs.newNimNode()
   for v in def[0..^3]:
-    result.add v.rmAsterisk
+    result.add if v.hasAsterisk: v[1]
+      else: v
   result.add(def[^2], def[^1])
 
 
 proc rmAsteriskFromProcs(p: NimNode): NimNode {.compileTime.} =
   result = p
-  result[0] = p[0].rmAsterisk()
-
-
-proc rmPragmas(node: NimNode): NimNode {.compileTime.} =
-  result = node
-  if node.kind == nnkPragmaExpr:
-    result = node[0]
+  result[0] = if p[0].hasAsterisk: p[0][1] else: p[0]
 
 
 proc rmPragmasFromIdent(def: NimNode): NimNode {.compileTime.} =
   result = nnkIdentDefs.newNimNode()
   for v in def[0..^3]:
-    result.add v.rmPragmas()
+    result.add if v.kind == nnkPragmaExpr: v[0]
+      else: v
   result.add(def[^2], def[^1])
 
 
@@ -116,22 +106,18 @@ func newSelfStmt(typeName: NimNode): NimNode {.compileTime.} =
   newVarStmt(ident"self", newCall typeName)
 
 
-func newResultAsgn(rhs: string): NimNode {.compileTime.} =
-  newAssignment ident"result", ident rhs
-
-
 func insertBody(
     constructor: NimNode;
     vars: seq[NimNode]
 ): NimNode {.compileTime.} =
+  constructor.expectKind nnkProcDef
   result = constructor
   if result.body[0].kind == nnkDiscardStmt:
     return
   result.body.insert 0, newSelfStmt(result.params[0])
   for v in vars.decomposeDefsIntoVars():
-    result.body.insert 1, quote do:
-      self.`v` = `v`
-  result.body.add newResultAsgn"self"
+    result.body.insert 1, quote do: self.`v` = `v`
+  result.body.add quote do: result = self
 
 
 proc insertArgs(
@@ -139,17 +125,9 @@ proc insertArgs(
     vars: seq[NimNode]
 ) {.compileTime.} =
   ## Inserts `vars` to constructor args.
+  constructor.expectKind nnkProcDef
   for v in vars:
     constructor.params.add v
-
-
-proc nameWithGenerics(info: ClassInfo): NimNode {.compileTime.} =
-  ## Return `name[T, U]` if a class has generics.
-  result = info.name
-  if info.generics != @[]:
-    result = nnkBracketExpr.newTree(
-      result & info.generics
-    )
 
 
 proc addOldSignatures(
@@ -172,6 +150,7 @@ proc addSignatures(
     args: seq[NimNode]
 ): NimNode {.compileTime.} =
   ## Adds signatures to `constructor`.
+  constructor.expectKind nnkProcDef
   constructor.name = ident"new"
   if info.isPub:
     markWithPostfix(constructor.name)
@@ -204,6 +183,7 @@ proc assistWithDef(
     args: seq[NimNode]
 ): NimNode {.compileTime.} =
   ## Adds signatures and insert body to `constructor`.
+  constructor.expectKind nnkProcDef
   constructor[2] = nnkGenericParams.newTree(
     nnkIdentDefs.newTree(
       info.generics & newEmptyNode() & newEmptyNode()
@@ -226,7 +206,7 @@ func newVarsColonExpr(v: NimNode): NimNode {.compileTime.} =
 
 func newLambdaColonExpr(theProc: NimNode): NimNode {.compileTime.} =
   ## Generates `name: proc() = self.name()`.
-  var lambdaProc = theProc.rmSelf()
+  let lambdaProc = theProc.rmSelf()
   let name = lambdaProc[0]
   lambdaProc[0] = newEmptyNode()
   lambdaProc.body = newDotExpr(ident"self", name).newCall(
@@ -263,7 +243,7 @@ proc genNewBody(
   for v in vars:
     result.insert 1, quote do:
       self.`v` = `v`
-  result.add newResultAsgn"self"
+  result.add quote do: result = self
 
 
 proc defOldNew(info: ClassInfo; args: seq[NimNode]): NimNode =
@@ -283,7 +263,7 @@ proc defOldNew(info: ClassInfo; args: seq[NimNode]): NimNode =
 
 
 proc defNew(info: ClassInfo; args: seq[NimNode]): NimNode =
-  var
+  let
     name = ident"new"
     params = info.nameWithGenerics&(
       newIdentDefs(
@@ -303,17 +283,6 @@ proc defNew(info: ClassInfo; args: seq[NimNode]): NimNode =
   )
   if info.isPub:
     markWithPostfix(result.name)
-
-
-func allArgsList(members: ClassMembers): seq[NimNode] {.compileTime.} =
-  members.argsList & members.ignoredArgsList
-
-
-func withoutDefault(argsList: seq[NimNode]): seq[NimNode] =
-  result = collect:
-    for v in argsList:
-      v[^1] = newEmptyNode()
-      v
 
 
 func hasDefault(node: NimNode): bool {.compileTime.} =
