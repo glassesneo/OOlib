@@ -25,6 +25,7 @@ macro class*(
   context.defMemberVars(theClass, members)
   context.defMemberRoutines(theClass, info, members)
   result = theClass
+  echo result.repr
 
 
 proc isClass*(T: typedesc): bool =

@@ -6,15 +6,16 @@ import ../src/oolib
 protocol Animal:
   var scientificName: string
 
-  proc breathe()
+  func breathe()
   proc roar()
 
 class Cat impl Animal:
   var scientificName*: string
   var name* {.ignored.}: string
 
-  proc breathe*() =
-    echo "breathed!"
+  func breathe*() =
+    # echo "breathed!"
+    discard
 
   proc roar*() =
     echo "meow!"
@@ -23,8 +24,9 @@ class Dog impl Animal:
   var scientificName: string
   var name {.ignored.}: string
 
-  proc breathe*() =
-    echo "breathed!"
+  func breathe*() =
+    # echo "breathed!"
+    discard
 
   proc roar*() =
     echo "bark!"

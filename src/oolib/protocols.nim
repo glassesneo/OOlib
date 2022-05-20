@@ -38,10 +38,10 @@ proc parseProtocolBody*(body: NimNode): ProtocolMembers =
     of nnkVarSection:
       for n in node:
         result.argsList.add n
-    of nnkProcDef:
+    of nnkProcDef, nnkFuncDef:
       result.procs.add node
-    of nnkFuncDef:
-      result.funcs.add node
+    #of nnkFuncDef:
+    #  result.funcs.add node
     of nnkDiscardStmt:
       discard
     else:
@@ -49,16 +49,17 @@ proc parseProtocolBody*(body: NimNode): ProtocolMembers =
 
 
 func toTupleMemberProc(node: NimNode): NimNode =
-  newIdentDefs node.name, nnkProcTy.newTree(node.params, node[4])
-
-
-func toTupleMemberFunc(node: NimNode): NimNode =
-  newIdentDefs node.name, nnkProcTy.newTree(
-    node.params,
+  if node.kind == nnkFuncDef:
     if node[4].kind == nnkEmpty:
-      newEmptyNode()
+      node[4] = nnkPragma.newTree(
+        ident"noSideEffect"
+      )
     else:
       node[4].add ident"noSideEffect"
+
+  newIdentDefs node.name, nnkProcTy.newTree(
+    node.params,
+    node[4]
   )
 
 
@@ -68,8 +69,8 @@ proc defProtocol*(info: ProtocolInfo, members: ProtocolMembers): NimNode =
     result[0][0][2].add v
   for p in members.procs:
     result[0][0][2].add p.toTupleMemberProc()
-  for f in members.funcs:
-    result[0][0][2].add f.toTupleMemberFunc()
+  #for f in members.funcs:
+  #  result[0][0][2].add f.toTupleMemberFunc()
   if info.isPub:
     result[0][0][0] = nnkPostfix.newTree(ident"*", result[0][0][0])
   result[0][0][0] = nnkPragmaExpr.newTree(
