@@ -332,6 +332,25 @@ func insertSelf(theProc, typeName: NimNode): NimNode {.compileTime.} =
   result.params.insert 1, newIdentDefs(ident"self", typeName)
 
 
+func addNoSideEffectPragma(theProc: NimNode) {.compileTime.} =
+  ## Adds `noSideEffect` pragma to theProc.
+  theProc.expectKind nnkProcDef
+  if theProc[4].isEmpty:
+    theProc[4] = nnkPragma.newTree(
+      ident"noSideEffect"
+    )
+  else:
+    theProc[4].add ident"noSideEffect"
+
+
+func convertFuncToProcWithPragma(theFunc: NimNode): NimNode {.compileTime.} =
+  ## Converts `func f()` to `proc f() {.noSideEffect.}`.
+  theFunc.expectKind nnkFuncDef
+  result = nnkProcDef.newNimNode()
+  theFunc.copyChildrenTo result
+  result.addNoSideEffectPragma()
+
+
 func inferValType(node: NimNode) {.compileTime.} =
   ## Infers type from default if a type annotation is empty.
   ## `node` has to be `nnkIdentDefs` or `nnkConstDef`.
@@ -507,8 +526,6 @@ proc defMemberRoutines(
     theClass.insert 1, genConstant(info.name.strVal, c)
 
 
-
-
 proc getClassMembers(
   self: InheritanceState;
   body: NimNode;
@@ -601,8 +618,6 @@ proc defMemberRoutines(
     theClass.insert 1, genConstant(info.name.strVal, c)
 
 
-
-
 proc getClassMembers(
   self: DistinctState;
   body: NimNode;
@@ -667,8 +682,6 @@ proc defMemberRoutines(
     theClass.insert 1, genConstant(info.name.strVal, c)
 
 
-
-
 proc getClassMembers(
   self: AliasState;
   body: NimNode;
@@ -730,8 +743,6 @@ proc defMemberRoutines(
     theClass.insert 1, genConstant(info.name.strVal, c)
 
 
-
-
 proc getClassMembers(
   self: ImplementationState;
   body: NimNode;
@@ -769,7 +780,9 @@ proc getClassMembers(
           error "Constructor already exists", node
       else:
         result.body.add node.insertSelf(info.name)
-    of nnkMethodDef, nnkFuncDef, nnkIteratorDef, nnkConverterDef, nnkTemplateDef:
+    of nnkFuncDef:
+      result.body.add node.insertSelf(info.name).convertFuncToProcWithPragma()
+    of nnkMethodDef, nnkIteratorDef, nnkConverterDef, nnkTemplateDef:
       result.body.add node.insertSelf(info.name)
     else:
       discard
@@ -859,10 +872,11 @@ proc defMemberRoutines(
     )
   ).insertSelf(info.name)
   theClass.add quote do:
-    when compiles(`interfaceProc`):
-      `interfaceProc`
-    else:
-      {.error: "Some properties are missing".}
+    `interfaceProc`
+    # when compiles(`interfaceProc`):
+    #  `interfaceProc`
+    # else:
+    #  {.error: "Some properties are missing".}
 
 
 generateToInterface NormalState
