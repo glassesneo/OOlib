@@ -5,6 +5,9 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
+### Fixed
+- exported properties in implementation classes now work properly [#106](https://github.com/Glasses-Neo/OOlib/issues/106)
+- `func` in implementation classes now don't cause errors [#107](https://github.com/Glasses-Neo/OOlib/issues/107)
 
 ## [v0.4.0] - 2022-5-5
 ### Added
@@ -15,8 +18,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Omission of body [#85](https://github.com/Glasses-Neo/OOlib/issues/85)
   - `class` and `protocol` are now called without their bodies
 - Alternative constructor [#77](https://github.com/Glasses-Neo/OOlib/issues/77)
-  - `newType` is now deprecated. Use `Type.new` instead
 - Support for generics [#93](https://github.com/Glasses-Neo/OOlib/issues/93)
+
+### Deprecated
+- `newType`
+  - Use `Type.new` instead
 
 ## [v0.3.0] - 2021-10-16
 ### Added
@@ -53,9 +59,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## v0.1.0 - 2021-8-1
 - 🎉 First release!
 
-[Unreleased]: https://github.com/Glasses-Neo/OOlib/compare/0.4.0...HEAD
-[v0.4.0]: https://github.com/Glasses-Neo/OOlib/compare/0.3.0...be8d6d9aa809181f6f17ae5a8721fc812c09956d
-[v0.3.0]: https://github.com/Glasses-Neo/OOlib/compare/0.2.2...5a1e429ea80d9dedc482d918f991140116699dc1
-[v0.2.2]: https://github.com/Glasses-Neo/OOlib/compare/0.2.1...b2478d904a1644509f0f86b921e6f0f8caf747cf
-[v0.2.1]: https://github.com/Glasses-Neo/OOlib/compare/0.2.0...b33007b4598a58e587eb71d9e991e1af56affa24
-[v0.2.0]: https://github.com/Glasses-Neo/OOlib/compare/5a1a0d2aadcbd30d723951d1b8418a653c86bf65...743a473841f7efdb41652678fe8a224cdbb7b5b4
+[Unreleased]: https://github.com/Glasses-Neo/OOlib/compare/0.4.0..HEAD
+[v0.4.0]: https://github.com/Glasses-Neo/OOlib/compare/0.3.0...0.4.0
+[v0.3.0]: https://github.com/Glasses-Neo/OOlib/compare/0.2.2...0.3.0
+[v0.2.2]: https://github.com/Glasses-Neo/OOlib/compare/0.2.1...0.2.2
+[v0.2.1]: https://github.com/Glasses-Neo/OOlib/compare/0.2.0...0.2.1
+[v0.2.0]: https://github.com/Glasses-Neo/OOlib/compare/0.1.0...0.2.0
