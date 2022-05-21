@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - exported properties in implementation classes now work properly [#106](https://github.com/Glasses-Neo/OOlib/issues/106)
 - `func` in implementation classes now don't cause errors [#107](https://github.com/Glasses-Neo/OOlib/issues/107)
 
+### Changed
+- Improved error indication for lack of properties in implementation classes
+
 ## [v0.4.0] - 2022-5-5
 ### Added
 - `protocol` that defines a tuple for an interface [#76](https://github.com/Glasses-Neo/OOlib/issues/76)
