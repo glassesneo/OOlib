@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
+
+## [v0.4.1] - 2022-5-21
 ### Fixed
 - exported properties in implementation classes now work properly [#106](https://github.com/Glasses-Neo/OOlib/issues/106)
 - `func` in implementation classes now don't cause errors [#107](https://github.com/Glasses-Neo/OOlib/issues/107)
@@ -62,7 +64,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## v0.1.0 - 2021-8-1
 - 🎉 First release!
 
-[Unreleased]: https://github.com/Glasses-Neo/OOlib/compare/0.4.0..HEAD
+[Unreleased]: https://github.com/Glasses-Neo/OOlib/compare/0.4.1..HEAD
+[v0.4.1]: https://github.com/Glasses-Neo/OOlib/compare/0.4.0..0.4.1
 [v0.4.0]: https://github.com/Glasses-Neo/OOlib/compare/0.3.0...0.4.0
 [v0.3.0]: https://github.com/Glasses-Neo/OOlib/compare/0.2.2...0.3.0
 [v0.2.2]: https://github.com/Glasses-Neo/OOlib/compare/0.2.1...0.2.2
