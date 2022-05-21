@@ -15,3 +15,6 @@ type
     defMemberRoutines: proc(
       theClass: NimNode, info: ClassInfo, members: ClassMembers
     )
+    defBody: proc(
+      theClass: NimNode, info: ClassInfo, members: ClassMembers
+    )

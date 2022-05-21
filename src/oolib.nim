@@ -10,10 +10,7 @@ export
   ignored
 
 
-macro class*(
-    head: untyped,
-    body: untyped = nnkEmpty.newNimNode
-): untyped =
+macro class*(head: untyped, body: untyped = newEmptyNode()): untyped =
   let
     info = getClassInfo(head)
     context = newContext(newState(info))
@@ -21,9 +18,7 @@ macro class*(
     theClass = newStmtList()
   context.defClass(theClass, info)
   theClass.add members.body.copy()
-  context.defConstructor(theClass, info, members)
-  context.defMemberVars(theClass, members)
-  context.defMemberRoutines(theClass, info, members)
+  context.defBody(theClass, info, members)
   result = theClass
 
 
