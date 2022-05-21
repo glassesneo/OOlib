@@ -25,7 +25,7 @@ proc parseProtocolHead*(head: NimNode): ProtocolInfo =
     error "Unsupported syntax", head
   of 2:
     result = newProtocolInfo(
-      isPub = head[0].isPub,
+      isPub = head.isPub,
       name = head[1]
     )
   else:
@@ -40,8 +40,6 @@ proc parseProtocolBody*(body: NimNode): ProtocolMembers =
         result.argsList.add n
     of nnkProcDef, nnkFuncDef:
       result.procs.add node
-    #of nnkFuncDef:
-    #  result.funcs.add node
     of nnkDiscardStmt:
       discard
     else:
@@ -72,6 +70,6 @@ proc defProtocol*(info: ProtocolInfo, members: ProtocolMembers): NimNode =
   if info.isPub:
     result[0][0][0] = nnkPostfix.newTree(ident"*", result[0][0][0])
   result[0][0][0] = nnkPragmaExpr.newTree(
-   result[0][0][0],
+    result[0][0][0],
     nnkPragma.newTree(ident "pProtocol")
   )
