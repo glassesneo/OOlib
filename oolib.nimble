@@ -1,6 +1,6 @@
 # Package
 
-version       = "0.4.1"
+version       = "0.4.2"
 author        = "Glasses-Neo"
 description   = "A nimble package which provides user-defined types, procedures, etc..."
 license       = "WTFPL"

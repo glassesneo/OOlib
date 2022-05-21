@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.4.2] - 2022-5-22
+### Fixed
+- a bug that prevented `protocol` exported
+
 ## [v0.4.1] - 2022-5-21
 ### Fixed
 - exported properties in implementation classes now work properly [#106](https://github.com/Glasses-Neo/OOlib/issues/106)
@@ -64,7 +68,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## v0.1.0 - 2021-8-1
 - 🎉 First release!
 
-[Unreleased]: https://github.com/Glasses-Neo/OOlib/compare/0.4.1..HEAD
+[Unreleased]: https://github.com/Glasses-Neo/OOlib/compare/0.4.2..HEAD
+[v0.4.2]: https://github.com/Glasses-Neo/OOlib/compare/0.4.1..0.4.2
 [v0.4.1]: https://github.com/Glasses-Neo/OOlib/compare/0.4.0..0.4.1
 [v0.4.0]: https://github.com/Glasses-Neo/OOlib/compare/0.3.0...0.4.0
 [v0.3.0]: https://github.com/Glasses-Neo/OOlib/compare/0.2.2...0.3.0
