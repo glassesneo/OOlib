@@ -9,7 +9,7 @@ protocol Animal:
   func breathe()
   proc roar()
 
-class Cat impl Animal:
+class pub Cat impl Animal:
   var scientificName*: string
   var name* {.ignored.}: string
 
