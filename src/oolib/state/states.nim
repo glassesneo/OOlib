@@ -689,17 +689,39 @@ proc getClassMembers(
   info: ClassInfo
 ): ClassMembers {.compileTime.} =
   result.body = newStmtList()
+  result.ctorBase = newEmptyNode()
+  result.ctorBase2 = newEmptyNode()
   for node in body:
     case node.kind
     of nnkVarSection:
-      error "Type alias cannot have variables", node
+      if info.base.repr != "tuple":
+        error "Type alias cannot have variables", node
+      for n in node:
+        if "noNewDef" in info.pragmas and n.hasDefault:
+          error "default values cannot be used with {.noNewDef.}", n
+        n.inferValType()
+        if n.hasPragma and "ignored" in n[0][1]:
+          error "{.ignored.} pragma cannot be used in non-implemented classes"
+        result.argsList.add n
     of nnkConstSection:
       for n in node:
         if not n.hasDefault:
           error "A constant must have a value", node
         n.inferValType()
         result.constsList.add n
-    of nnkProcDef, nnkMethodDef, nnkFuncDef, nnkIteratorDef, nnkConverterDef, nnkTemplateDef:
+    of nnkProcDef:
+      if info.base.eqIdent"tuple" and node.isConstructor:
+        if result.ctorBase.kind == nnkEmpty:
+          result.ctorBase = node.copy()
+          result.ctorBase[4] = nnkPragma.newTree(
+            newColonExpr(ident"deprecated", newLit"Use Type.new instead")
+          )
+          result.ctorBase2 = node.copy()
+        else:
+          error "Constructor already exists", node
+      else:
+        result.body.add node.insertSelf(info.name)
+    of nnkMethodDef, nnkFuncDef, nnkIteratorDef, nnkConverterDef, nnkTemplateDef:
       result.body.add node.insertSelf(info.name)
     else:
       discard
@@ -731,7 +753,10 @@ proc defMemberVars(
     theClass: NimNode;
     members: ClassMembers
 ) {.compileTime.} =
-  discard
+  if members.argsList.len != 0:
+    theClass[0][0][2] = nnkTupleTy.newTree(
+      members.argsList.withoutDefault()
+    )
 
 
 proc defMemberRoutines(
