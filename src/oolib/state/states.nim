@@ -883,8 +883,11 @@ proc defMemberRoutines(
     )
     )
   ).insertSelf(info.name)
+  let compileProc = interfaceProc.copy
+  if info.isPub:
+    markWithPostfix(interfaceProc.name)
   theClass.add quote do:
-    when compiles(`interfaceProc`):
+    when compiles(`compileProc`):
       `interfaceProc`
     else:
       {.error: "Some properties are missing".}
