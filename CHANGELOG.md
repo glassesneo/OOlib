@@ -6,9 +6,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.4.3] -2022-5-22
+### Fixed
+- a bug that `toInterface` was not exported
+
 ## [v0.4.2] - 2022-5-22
 ### Fixed
-- a bug that prevented `protocol` exported
+- a bug that `protocol` was not exported
 
 ## [v0.4.1] - 2022-5-21
 ### Fixed
