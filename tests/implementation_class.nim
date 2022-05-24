@@ -13,6 +13,10 @@ class pub Cat impl Animal:
   var scientificName*: string
   var name* {.ignored.}: string
 
+  proc `new`(scientificName; name) =
+    self.scientificName = scientificName
+    self.name = name
+
   func breathe*() =
     # echo "breathed!"
     discard

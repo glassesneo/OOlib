@@ -323,6 +323,32 @@ func inferValType(node: NimNode) {.compileTime.} =
   node[^2] = node[^2] or newCall(ident"typeof", node[^1])
 
 
+func inferArgType(
+    v: NimNode;
+    members: ClassMembers
+): NimNode {.compileTime.} =
+  result = newIdentDefs(v, newEmptyNode())
+  for def in members.allArgsList.mapIt(
+    it.rmPragmasFromIdent().rmAsteriskFromIdent()
+  ):
+    for arg in def[0..^3]:
+      if arg == v:
+        result[^2] = def[^2]
+        return
+
+
+func inferArgTypes(
+    args: seq[NimNode];
+    members: ClassMembers
+): seq[NimNode] {.compileTime.} =
+  for def in args:
+    if newEmptyNode() notin def[^2..^1]:
+      result.add def
+      continue
+    for v in def[0..^3]:
+      result.add v.inferArgType(members)
+
+
 func isConstructor(node: NimNode): bool {.compileTime.} =
   ## `node` has to be `nnkProcDef`.
   node.expectKind {nnkProcDef}
@@ -459,6 +485,10 @@ proc defConstructor(
     if members.ctorBase.kind == nnkEmpty:
       info.defOldNew(members.argsList.map rmAsteriskFromIdent)
     else:
+      members.ctorBase.params = nnkFormalParams.newTree(
+        newEmptyNode() &
+        members.ctorBase.params[1..^1].inferArgTypes(members)
+      )
       members.ctorBase.assistWithOldDef(
         info,
         members.argsList.filter(hasDefault).map rmAsteriskFromIdent
@@ -469,6 +499,10 @@ proc defConstructor(
     if members.ctorBase2.kind == nnkEmpty:
       info.defNew(members.argsList.map rmAsteriskFromIdent)
     else:
+      members.ctorBase2.params = nnkFormalParams.newTree(
+        newEmptyNode() &
+        members.ctorBase2.params[1..^1].inferArgTypes(members)
+      )
       members.ctorBase2.assistWithDef(
         info,
         members.argsList.filter(hasDefault).map rmAsteriskFromIdent
@@ -852,6 +886,10 @@ proc defConstructor(
         members.allArgsList.mapIt(it.rmPragmasFromIdent.rmAsteriskFromIdent)
       )
     else:
+      members.ctorBase.params = nnkFormalParams.newTree(
+        newEmptyNode() &
+        members.ctorBase.params[1..^1].inferArgTypes(members)
+      )
       members.ctorBase.assistWithOldDef(
         info,
         members.allArgsList.filter(hasDefault).mapIt(
@@ -866,6 +904,10 @@ proc defConstructor(
         members.allArgsList.mapIt(it.rmPragmasFromIdent.rmAsteriskFromIdent)
       )
     else:
+      members.ctorBase2.params = nnkFormalParams.newTree(
+        newEmptyNode() &
+        members.ctorBase2.params[1..^1].inferArgTypes(members)
+      )
       members.ctorBase2.assistWithDef(
         info,
         members.allArgsList.filter(hasDefault).mapIt(
