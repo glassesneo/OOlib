@@ -20,7 +20,7 @@ type
 
   ClassMembers* = tuple
     body, ctorBase, ctorBase2: NimNode
-    argsList, ignoredArgsList, constsList: seq[NimNode]
+    argList, ignoredArgList, constList: seq[NimNode]
 
 
   ProtocolKind* {.pure.} = enum
@@ -32,7 +32,7 @@ type
     name: NimNode
 
   ProtocolMembers* = tuple
-    argsList, procs, funcs: seq[NimNode]
+    argList, procs, funcs: seq[NimNode]
 
 
 proc nameWithGenerics*(info: ClassInfo): NimNode {.compileTime.} =
@@ -44,12 +44,12 @@ proc nameWithGenerics*(info: ClassInfo): NimNode {.compileTime.} =
     )
 
 
-func allArgsList*(members: ClassMembers): seq[NimNode] {.compileTime.} =
-  members.argsList & members.ignoredArgsList
+func allArgList*(members: ClassMembers): seq[NimNode] {.compileTime.} =
+  members.argList & members.ignoredArgList
 
 
-func withoutDefault*(argsList: seq[NimNode]): seq[NimNode] =
+func withoutDefault*(argList: seq[NimNode]): seq[NimNode] =
   result = collect:
-    for v in argsList:
+    for v in argList:
       v[^1] = newEmptyNode()
       v

@@ -328,7 +328,7 @@ func inferArgType(
     members: ClassMembers
 ): NimNode {.compileTime.} =
   result = newIdentDefs(v, newEmptyNode())
-  for def in members.allArgsList.mapIt(
+  for def in members.allArgList.mapIt(
     it.rmPragmasFromIdent().rmAsteriskFromIdent()
   ):
     for arg in def[0..^3]:
@@ -425,7 +425,7 @@ proc getClassMembers(
         n.inferValType()
         if n.hasPragma and "ignored" in n[0][1]:
           error "{.ignored.} pragma cannot be used in non-implemented classes"
-        result.argsList.add n
+        result.argList.add n
     of nnkConstSection:
       for n in node:
         if not n.hasDefault:
@@ -433,7 +433,7 @@ proc getClassMembers(
         if info.generics.anyIt(it.eqIdent n):
           error "A constant with generic type cannot be used"
         n.inferValType()
-        result.constsList.add n
+        result.constList.add n
     of nnkProcDef:
       if node.isConstructor:
         if result.ctorBase.kind == nnkEmpty:
@@ -483,7 +483,7 @@ proc defConstructor(
   theClass.insert(
     1,
     if members.ctorBase.kind == nnkEmpty:
-      info.defOldNew(members.argsList.map rmAsteriskFromIdent)
+      info.defOldNew(members.argList.map rmAsteriskFromIdent)
     else:
       members.ctorBase.params = nnkFormalParams.newTree(
         newEmptyNode() &
@@ -491,13 +491,13 @@ proc defConstructor(
       )
       members.ctorBase.assistWithOldDef(
         info,
-        members.argsList.filter(hasDefault).map rmAsteriskFromIdent
+        members.argList.filter(hasDefault).map rmAsteriskFromIdent
       )
   )
   theClass.insert(
     1,
     if members.ctorBase2.kind == nnkEmpty:
-      info.defNew(members.argsList.map rmAsteriskFromIdent)
+      info.defNew(members.argList.map rmAsteriskFromIdent)
     else:
       members.ctorBase2.params = nnkFormalParams.newTree(
         newEmptyNode() &
@@ -505,7 +505,7 @@ proc defConstructor(
       )
       members.ctorBase2.assistWithDef(
         info,
-        members.argsList.filter(hasDefault).map rmAsteriskFromIdent
+        members.argList.filter(hasDefault).map rmAsteriskFromIdent
       )
   )
 
@@ -515,7 +515,7 @@ proc defMemberVars(
     theClass: NimNode;
     members: ClassMembers
 ) {.compileTime.} =
-  theClass[0][0][2][0][2] = members.argsList.withoutDefault().toRecList()
+  theClass[0][0][2][0][2] = members.argList.withoutDefault().toRecList()
 
 
 proc defMemberRoutines(
@@ -524,7 +524,7 @@ proc defMemberRoutines(
     info: ClassInfo;
     members: ClassMembers
 ) {.compileTime.} =
-  for c in members.constsList:
+  for c in members.constList:
     theClass.insert 1, genConstant(info.name.strVal, c)
 
 
@@ -556,13 +556,13 @@ proc getClassMembers(
         if n.hasPragma and "ignored" in n[0][1]:
           error "{.ignored.} pragma cannot be used in non-implemented classes"
         n.inferValType()
-        result.argsList.add n
+        result.argList.add n
     of nnkConstSection:
       for n in node:
         if not n.hasDefault:
           error "A constant must have a value", node
         n.inferValType()
-        result.constsList.add n
+        result.constList.add n
     of nnkProcDef:
       if node.isConstructor:
         if result.ctorBase.kind == nnkEmpty:
@@ -605,11 +605,11 @@ proc defConstructor(
   if not (members.ctorBase.kind == nnkEmpty or "noNewDef" in info.pragmas):
     theClass.insert 1, members.ctorBase.assistWithOldDef(
       info,
-      members.argsList.filter(hasDefault).map rmAsteriskFromIdent
+      members.argList.filter(hasDefault).map rmAsteriskFromIdent
     )
     theClass.insert 1, members.ctorBase2.assistWithDef(
       info,
-      members.argsList.filter(hasDefault).map rmAsteriskFromIdent
+      members.argList.filter(hasDefault).map rmAsteriskFromIdent
     )
 
 
@@ -618,7 +618,7 @@ proc defMemberVars(
     theClass: NimNode;
     members: ClassMembers
 ) {.compileTime.} =
-  theClass[0][0][2][0][2] = members.argsList.withoutDefault().toRecList()
+  theClass[0][0][2][0][2] = members.argList.withoutDefault().toRecList()
 
 
 proc defMemberRoutines(
@@ -627,7 +627,7 @@ proc defMemberRoutines(
     info: ClassInfo;
     members: ClassMembers
 ) {.compileTime.} =
-  for c in members.constsList:
+  for c in members.constList:
     theClass.insert 1, genConstant(info.name.strVal, c)
 
 
@@ -657,7 +657,7 @@ proc getClassMembers(
         if not n.hasDefault:
           error "A constant must have a value", node
         n.inferValType()
-        result.constsList.add n
+        result.constList.add n
     of nnkProcDef, nnkMethodDef, nnkFuncDef, nnkIteratorDef, nnkConverterDef, nnkTemplateDef:
       result.body.add node.insertSelf(info.name)
     else:
@@ -702,7 +702,7 @@ proc defMemberRoutines(
     info: ClassInfo;
     members: ClassMembers
 ) {.compileTime.} =
-  for c in members.constsList:
+  for c in members.constList:
     theClass.insert 1, genConstant(info.name.strVal, c)
 
 
@@ -736,13 +736,13 @@ proc getClassMembers(
         n.inferValType()
         if n.hasPragma and "ignored" in n[0][1]:
           error "{.ignored.} pragma cannot be used in non-implemented classes"
-        result.argsList.add n
+        result.argList.add n
     of nnkConstSection:
       for n in node:
         if not n.hasDefault:
           error "A constant must have a value", node
         n.inferValType()
-        result.constsList.add n
+        result.constList.add n
     of nnkProcDef:
       if info.base.eqIdent"tuple" and node.isConstructor:
         if result.ctorBase.kind == nnkEmpty:
@@ -787,9 +787,9 @@ proc defMemberVars(
     theClass: NimNode;
     members: ClassMembers
 ) {.compileTime.} =
-  if members.argsList.len != 0:
+  if members.argList.len != 0:
     theClass[0][0][2] = nnkTupleTy.newTree(
-      members.argsList.withoutDefault()
+      members.argList.withoutDefault()
     )
 
 
@@ -799,7 +799,7 @@ proc defMemberRoutines(
     info: ClassInfo;
     members: ClassMembers
 ) {.compileTime.} =
-  for c in members.constsList:
+  for c in members.constList:
     theClass.insert 1, genConstant(info.name.strVal, c)
 
 
@@ -830,15 +830,15 @@ proc getClassMembers(
           error "default values cannot be used with {.noNewDef.}", n
         n.inferValType()
         if n.hasPragma and "ignored" in n[0][1]:
-          result.ignoredArgsList.add n
+          result.ignoredArgList.add n
         else:
-          result.argsList.add n
+          result.argList.add n
     of nnkConstSection:
       for n in node:
         if not n.hasDefault:
           error "A constant must have a value", node
         n.inferValType()
-        result.constsList.add n
+        result.constList.add n
     of nnkProcDef:
       if node.isConstructor:
         if result.ctorBase.kind == nnkEmpty:
@@ -883,7 +883,7 @@ proc defConstructor(
     1,
     if members.ctorBase.kind == nnkEmpty:
       info.defOldNew(
-        members.allArgsList.mapIt(it.rmPragmasFromIdent.rmAsteriskFromIdent)
+        members.allArgList.mapIt(it.rmPragmasFromIdent.rmAsteriskFromIdent)
       )
     else:
       members.ctorBase.params = nnkFormalParams.newTree(
@@ -892,7 +892,7 @@ proc defConstructor(
       )
       members.ctorBase.assistWithOldDef(
         info,
-        members.allArgsList.filter(hasDefault).mapIt(
+        members.allArgList.filter(hasDefault).mapIt(
           it.rmPragmasFromIdent.rmAsteriskFromIdent
         )
       )
@@ -901,7 +901,7 @@ proc defConstructor(
     1,
     if members.ctorBase2.kind == nnkEmpty:
       info.defNew(
-        members.allArgsList.mapIt(it.rmPragmasFromIdent.rmAsteriskFromIdent)
+        members.allArgList.mapIt(it.rmPragmasFromIdent.rmAsteriskFromIdent)
       )
     else:
       members.ctorBase2.params = nnkFormalParams.newTree(
@@ -910,7 +910,7 @@ proc defConstructor(
       )
       members.ctorBase2.assistWithDef(
         info,
-        members.allArgsList.filter(hasDefault).mapIt(
+        members.allArgList.filter(hasDefault).mapIt(
           it.rmPragmasFromIdent.rmAsteriskFromIdent
         )
       )
@@ -922,7 +922,7 @@ proc defMemberVars(
     theClass: NimNode;
     members: ClassMembers
 ) {.compileTime.} =
-  theClass[0][0][2][0][2] = members.allArgsList.withoutDefault().toRecList()
+  theClass[0][0][2][0][2] = members.allArgList.withoutDefault().toRecList()
 
 
 proc defMemberRoutines(
@@ -931,7 +931,7 @@ proc defMemberRoutines(
     info: ClassInfo;
     members: ClassMembers
 ) {.compileTime.} =
-  for c in members.constsList:
+  for c in members.constList:
     theClass.insert 1, genConstant(info.name.strVal, c)
   let interfaceProc = newProc(
     ident"toInterface",
@@ -939,7 +939,7 @@ proc defMemberRoutines(
     newStmtList(
       nnkReturnStmt.newNimNode.add(
         nnkTupleConstr.newNimNode.add(
-          members.argsList.map(rmAsteriskFromIdent).decomposeDefsIntoVars().map(newVarsColonExpr)
+          members.argList.map(rmAsteriskFromIdent).decomposeDefsIntoVars().map(newVarsColonExpr)
       ).add(
         members.body.filterIt(
           it.kind == nnkProcDef and "ignored" notin it[4]

@@ -37,7 +37,7 @@ proc parseProtocolBody*(body: NimNode): ProtocolMembers =
     case node.kind
     of nnkVarSection:
       for n in node:
-        result.argsList.add n
+        result.argList.add n
     of nnkProcDef, nnkFuncDef:
       result.procs.add node
     of nnkDiscardStmt:
@@ -63,7 +63,7 @@ func toTupleMemberProc(node: NimNode): NimNode =
 
 proc defProtocol*(info: ProtocolInfo, members: ProtocolMembers): NimNode =
   result = newStmtList getAst defProtocol(info.name)
-  for v in members.argsList:
+  for v in members.argList:
     result[0][0][2].add v
   for p in members.procs:
     result[0][0][2].add p.toTupleMemberProc()
