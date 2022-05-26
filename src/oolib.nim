@@ -1,6 +1,6 @@
 import
   std/macros,
-  oolib / [sub, types, classes, protocols],
+  oolib / [sub, classes, protocols],
   oolib / state / [states, context]
 
 export
@@ -17,7 +17,6 @@ macro class*(head: untyped, body: untyped = newEmptyNode()): untyped =
     members = context.getClassMembers(body, info)
     theClass = newStmtList()
   context.defClass(theClass, info)
-  theClass.add members.body.copy()
   context.defBody(theClass, info, members)
   result = theClass
 

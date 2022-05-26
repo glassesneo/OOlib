@@ -12,7 +12,7 @@ func hasAsterisk(node: NimNode): bool {.compileTime.} =
   node.kind == nnkPostfix and node[0].eqIdent"*"
 
 
-proc rmAsteriskFromIdent(def: NimNode): NimNode {.compileTime.} =
+proc removeAsteriskFromIdent(def: NimNode): NimNode {.compileTime.} =
   result = nnkIdentDefs.newNimNode()
   for v in def[0..^3]:
     result.add if v.hasAsterisk: v[1]
@@ -20,17 +20,21 @@ proc rmAsteriskFromIdent(def: NimNode): NimNode {.compileTime.} =
   result.add(def[^2], def[^1])
 
 
-proc rmAsteriskFromProcs(p: NimNode): NimNode {.compileTime.} =
-  result = p
-  result[0] = if p[0].hasAsterisk: p[0][1] else: p[0]
+proc removeAsteriskFromProc(theProc: NimNode): NimNode {.compileTime.} =
+  result = theProc
+  result[0] = if theProc[0].hasAsterisk: theProc[0][1] else: theProc[0]
 
 
-proc rmPragmasFromIdent(def: NimNode): NimNode {.compileTime.} =
+proc removePragmasFromIdent(def: NimNode): NimNode {.compileTime.} =
   result = nnkIdentDefs.newNimNode()
   for v in def[0..^3]:
     result.add if v.kind == nnkPragmaExpr: v[0]
       else: v
   result.add(def[^2], def[^1])
+
+
+proc simplifyIdentDefs(def: NimNode): NimNode {.compileTime.} =
+  result = def.removePragmasFromIdent().removeAsteriskFromIdent()
 
 
 func toRecList(s: seq[NimNode]): NimNode {.compileTime.} =
@@ -101,11 +105,6 @@ func decomposeDefsIntoVars(s: seq[NimNode]): seq[NimNode] {.compileTime.} =
         else: v
 
 
-func newSelfStmt(typeName: NimNode): NimNode {.compileTime.} =
-  ## Generates `var self = typeName()`.
-  newVarStmt(ident"self", newCall typeName)
-
-
 func insertBody(
     constructor: NimNode;
     vars: seq[NimNode]
@@ -114,7 +113,7 @@ func insertBody(
   result = constructor
   if result.body[0].kind == nnkDiscardStmt:
     return
-  result.body.insert 0, newSelfStmt(result.params[0])
+  result.body.insert 0, newVarStmt(ident"self", newCall result.params[0])
   for v in vars.decomposeDefsIntoVars():
     result.body.insert 1, quote do: self.`v` = `v`
   result.body.add quote do: result = self
@@ -169,9 +168,10 @@ proc addSignatures(
 proc assistWithOldDef(
     constructor: NimNode;
     info: ClassInfo;
-    args: seq[NimNode]
+    argList: seq[NimNode]
 ): NimNode {.compileTime.} =
   ## Adds signatures and insert body to `constructor`.
+  let args = argList.map(simplifyIdentDefs)
   constructor
     .addOldSignatures(info, args)
     .insertBody(args)
@@ -180,15 +180,17 @@ proc assistWithOldDef(
 proc assistWithDef(
     constructor: NimNode;
     info: ClassInfo;
-    args: seq[NimNode]
+    argList: seq[NimNode]
 ): NimNode {.compileTime.} =
   ## Adds signatures and insert body to `constructor`.
+  let args = argList.map(simplifyIdentDefs)
   constructor.expectKind nnkProcDef
-  constructor[2] = nnkGenericParams.newTree(
-    nnkIdentDefs.newTree(
-      info.generics & newEmptyNode() & newEmptyNode()
+  if info.generics.len != 0:
+    constructor[2] = nnkGenericParams.newTree(
+      nnkIdentDefs.newTree(
+        info.generics & newEmptyNode() & newEmptyNode()
+      )
     )
-  )
   constructor
     .addSignatures(info, args)
     .insertBody(args)
@@ -197,7 +199,7 @@ proc assistWithDef(
 func rmSelf(theProc: NimNode): NimNode {.compileTime.} =
   ## Removes `self: typeName` from the 1st of theProc.params.
   result = theProc.copy
-  result.params.del(1, 1)
+  result.params.del(idx = 1)
 
 
 func newVarsColonExpr(v: NimNode): NimNode {.compileTime.} =
@@ -206,9 +208,9 @@ func newVarsColonExpr(v: NimNode): NimNode {.compileTime.} =
 
 func newLambdaColonExpr(theProc: NimNode): NimNode {.compileTime.} =
   ## Generates `name: proc() = self.name()`.
-  let lambdaProc = theProc.rmSelf()
-  let name = lambdaProc[0]
-  lambdaProc[0] = newEmptyNode()
+  let lambdaProc = theProc.removeAsteriskFromProc().rmSelf()
+  let name = lambdaProc.name
+  lambdaProc.name = newEmptyNode()
   lambdaProc.body = newDotExpr(ident"self", name).newCall(
     lambdaProc.params[1..^1].mapIt(it[0])
   )
@@ -239,14 +241,15 @@ proc genNewBody(
     typeName: NimNode;
     vars: seq[NimNode]
 ): NimNode {.compileTime.} =
-  result = newStmtList(newSelfStmt typeName)
+  result = newStmtList(newVarStmt(ident"self", newCall typeName))
   for v in vars:
     result.insert 1, quote do:
       self.`v` = `v`
   result.add quote do: result = self
 
 
-proc defOldNew(info: ClassInfo; args: seq[NimNode]): NimNode =
+proc defOldNew(info: ClassInfo; argList: seq[NimNode]): NimNode =
+  let args = argList.map(simplifyIdentDefs)
   var
     name = ident "new"&strVal(info.name)
     params = info.name&args
@@ -262,7 +265,8 @@ proc defOldNew(info: ClassInfo; args: seq[NimNode]): NimNode =
   )
 
 
-proc defNew(info: ClassInfo; args: seq[NimNode]): NimNode =
+proc defNew(info: ClassInfo; argList: seq[NimNode]): NimNode =
+  let args = argList.map(simplifyIdentDefs)
   let
     name = ident"new"
     params = info.nameWithGenerics&(
@@ -328,11 +332,9 @@ func inferArgType(
     members: ClassMembers
 ): NimNode {.compileTime.} =
   result = newIdentDefs(v, newEmptyNode())
-  for def in members.allArgList.mapIt(
-    it.rmPragmasFromIdent().rmAsteriskFromIdent()
-  ):
+  for def in members.allArgList.map(simplifyIdentDefs):
     for arg in def[0..^3]:
-      if arg == v:
+      if v == arg:
         result[^2] = def[^2]
         return
 
@@ -483,7 +485,7 @@ proc defConstructor(
   theClass.insert(
     1,
     if members.ctorBase.kind == nnkEmpty:
-      info.defOldNew(members.argList.map rmAsteriskFromIdent)
+      info.defOldNew(members.argList)
     else:
       members.ctorBase.params = nnkFormalParams.newTree(
         newEmptyNode() &
@@ -491,13 +493,13 @@ proc defConstructor(
       )
       members.ctorBase.assistWithOldDef(
         info,
-        members.argList.filter(hasDefault).map rmAsteriskFromIdent
+        members.argList.filter(hasDefault)
       )
   )
   theClass.insert(
     1,
     if members.ctorBase2.kind == nnkEmpty:
-      info.defNew(members.argList.map rmAsteriskFromIdent)
+      info.defNew(members.argList)
     else:
       members.ctorBase2.params = nnkFormalParams.newTree(
         newEmptyNode() &
@@ -505,7 +507,7 @@ proc defConstructor(
       )
       members.ctorBase2.assistWithDef(
         info,
-        members.argList.filter(hasDefault).map rmAsteriskFromIdent
+        members.argList.filter(hasDefault)
       )
   )
 
@@ -524,6 +526,7 @@ proc defMemberRoutines(
     info: ClassInfo;
     members: ClassMembers
 ) {.compileTime.} =
+  theClass.add members.body.copy()
   for c in members.constList:
     theClass.insert 1, genConstant(info.name.strVal, c)
 
@@ -605,11 +608,11 @@ proc defConstructor(
   if not (members.ctorBase.kind == nnkEmpty or "noNewDef" in info.pragmas):
     theClass.insert 1, members.ctorBase.assistWithOldDef(
       info,
-      members.argList.filter(hasDefault).map rmAsteriskFromIdent
+      members.argList.filter(hasDefault)
     )
     theClass.insert 1, members.ctorBase2.assistWithDef(
       info,
-      members.argList.filter(hasDefault).map rmAsteriskFromIdent
+      members.argList.filter(hasDefault)
     )
 
 
@@ -627,6 +630,7 @@ proc defMemberRoutines(
     info: ClassInfo;
     members: ClassMembers
 ) {.compileTime.} =
+  theClass.add members.body.copy()
   for c in members.constList:
     theClass.insert 1, genConstant(info.name.strVal, c)
 
@@ -702,6 +706,7 @@ proc defMemberRoutines(
     info: ClassInfo;
     members: ClassMembers
 ) {.compileTime.} =
+  theClass.add members.body.copy()
   for c in members.constList:
     theClass.insert 1, genConstant(info.name.strVal, c)
 
@@ -799,6 +804,7 @@ proc defMemberRoutines(
     info: ClassInfo;
     members: ClassMembers
 ) {.compileTime.} =
+  theClass.add members.body.copy()
   for c in members.constList:
     theClass.insert 1, genConstant(info.name.strVal, c)
 
@@ -882,9 +888,7 @@ proc defConstructor(
   theClass.insert(
     1,
     if members.ctorBase.kind == nnkEmpty:
-      info.defOldNew(
-        members.allArgList.mapIt(it.rmPragmasFromIdent.rmAsteriskFromIdent)
-      )
+      info.defOldNew(members.allArgList)
     else:
       members.ctorBase.params = nnkFormalParams.newTree(
         newEmptyNode() &
@@ -892,16 +896,14 @@ proc defConstructor(
       )
       members.ctorBase.assistWithOldDef(
         info,
-        members.allArgList.filter(hasDefault).mapIt(
-          it.rmPragmasFromIdent.rmAsteriskFromIdent
-        )
+        members.allArgList.filter(hasDefault)
       )
   )
   theClass.insert(
     1,
     if members.ctorBase2.kind == nnkEmpty:
       info.defNew(
-        members.allArgList.mapIt(it.rmPragmasFromIdent.rmAsteriskFromIdent)
+        members.allArgList
       )
     else:
       members.ctorBase2.params = nnkFormalParams.newTree(
@@ -910,9 +912,7 @@ proc defConstructor(
       )
       members.ctorBase2.assistWithDef(
         info,
-        members.allArgList.filter(hasDefault).mapIt(
-          it.rmPragmasFromIdent.rmAsteriskFromIdent
-        )
+        members.allArgList.filter(hasDefault)
       )
   )
 
@@ -931,6 +931,7 @@ proc defMemberRoutines(
     info: ClassInfo;
     members: ClassMembers
 ) {.compileTime.} =
+  theClass.add members.body.copy()
   for c in members.constList:
     theClass.insert 1, genConstant(info.name.strVal, c)
   let interfaceProc = newProc(
@@ -939,13 +940,11 @@ proc defMemberRoutines(
     newStmtList(
       nnkReturnStmt.newNimNode.add(
         nnkTupleConstr.newNimNode.add(
-          members.argList.map(rmAsteriskFromIdent).decomposeDefsIntoVars().map(newVarsColonExpr)
+          members.argList.map(removeAsteriskFromIdent).decomposeDefsIntoVars().map(newVarsColonExpr)
       ).add(
         members.body.filterIt(
           it.kind == nnkProcDef and "ignored" notin it[4]
-        ).mapIt(
-          it.rmAsteriskFromProcs.newLambdaColonExpr
-        )
+        ).map(newLambdaColonExpr)
       )
     )
     )
