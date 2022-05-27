@@ -15,23 +15,19 @@ proc newContext*(state: IState): Context {.compileTime.} =
 proc getClassMembers*(
     self: Context,
     body: NimNode,
-    info: ClassInfo
-): ClassMembers {.compileTime.} =
-  self.state.getClassMembers(body, info)
+) {.compileTime.} =
+  self.state.getClassMembers(body)
 
 
 proc defClass*(
     self: Context,
     theClass: NimNode,
-    info: ClassInfo
 ) {.compileTime.} =
-  self.state.defClass(theClass, info)
+  self.state.defClass(theClass)
 
 
 proc defBody*(
     self: Context,
     theClass: NimNode,
-    info: ClassInfo,
-    members: ClassMembers
 ) {.compileTime.} =
-  self.state.defBody(theClass, info, members)
+  self.state.defBody(theClass)

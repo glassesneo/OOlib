@@ -14,10 +14,10 @@ macro class*(head: untyped, body: untyped = newEmptyNode()): untyped =
   let
     info = getClassInfo(head)
     context = newContext(newState(info))
-    members = context.getClassMembers(body, info)
     theClass = newStmtList()
-  context.defClass(theClass, info)
-  context.defBody(theClass, info, members)
+  context.getClassMembers(body)
+  context.defClass(theClass)
+  context.defBody(theClass)
   result = theClass
 
 

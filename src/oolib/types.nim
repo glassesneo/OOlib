@@ -18,6 +18,14 @@ type
     kind: ClassKind
     name, base: NimNode
 
+  ClassData* = tuple
+    isPub: bool
+    name, base: NimNode
+    pragmas: seq[string]
+    generics: seq[NimNode]
+    body, ctorBase, ctorBase2: NimNode
+    argList, ignoredArgList, constList: seq[NimNode]
+
   ClassMembers* = tuple
     body, ctorBase, ctorBase2: NimNode
     argList, ignoredArgList, constList: seq[NimNode]
@@ -35,17 +43,17 @@ type
     argList, procs, funcs: seq[NimNode]
 
 
-proc nameWithGenerics*(info: ClassInfo): NimNode {.compileTime.} =
+proc nameWithGenerics*(data: ClassData): NimNode {.compileTime.} =
   ## Return `name[T, U]` if a class has generics.
-  result = info.name
-  if info.generics != @[]:
+  result = data.name
+  if data.generics != @[]:
     result = nnkBracketExpr.newTree(
-      result & info.generics
+      result & data.generics
     )
 
 
-func allArgList*(members: ClassMembers): seq[NimNode] {.compileTime.} =
-  members.argList & members.ignoredArgList
+func allArgList*(data: ClassData): seq[NimNode] {.compileTime.} =
+  data.argList & data.ignoredArgList
 
 
 func withoutDefault*(argList: seq[NimNode]): seq[NimNode] =

@@ -4,17 +4,10 @@ import
 
 type
   IState* = tuple
-    getClassMembers: proc(body: NimNode, info: ClassInfo): ClassMembers
-    defClass: proc(theClass: NimNode, info: ClassInfo)
-    defConstructor: proc(
-      theClass: NimNode, info: ClassInfo, members: ClassMembers
-    )
-    defMemberVars: proc(
-      theClass: NimNode, members: ClassMembers
-    )
-    defMemberRoutines: proc(
-      theClass: NimNode, info: ClassInfo, members: ClassMembers
-    )
-    defBody: proc(
-      theClass: NimNode, info: ClassInfo, members: ClassMembers
-    )
+    data: ClassData
+    getClassMembers: proc(body: NimNode)
+    defClass: proc(theClass: NimNode)
+    defConstructor: proc(theClass: NimNode)
+    defMemberVars: proc(theClass: NimNode)
+    defMemberRoutines: proc(theClass: NimNode)
+    defBody: proc(theClass: NimNode)
