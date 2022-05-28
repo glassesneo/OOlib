@@ -36,7 +36,6 @@ template generateNewState(t) =
         generics: info.generics,
         body: newStmtList(),
         ctorBase: newEmptyNode(),
-        ctorBase2: newEmptyNode(),
         argList: @[],
         ignoredArgList: @[],
         constList: @[]
@@ -226,20 +225,6 @@ proc insertArgs(
     constructor.params.add v
 
 
-proc addOldSignatures(
-    constructor: NimNode;
-    data: ClassData
-): NimNode {.compileTime.} =
-  ## Adds signatures to `constructor`.
-  let args = data.allArgList.filter(hasDefault).map(simplifyIdentDefs)
-  constructor.name = ident "new"&data.name.strVal
-  if data.isPub:
-    markWithPostfix(constructor.name)
-  constructor.params[0] = data.name
-  constructor.insertArgs(args)
-  return constructor
-
-
 proc addSignatures(
     constructor: NimNode;
     data: ClassData
@@ -314,23 +299,6 @@ proc genNewBody(
   result.add quote do: result = self
 
 
-proc defOldNew(data: ClassData): NimNode =
-  let args = data.allArgList.map(simplifyIdentDefs)
-  var
-    name = ident "new"&strVal(data.name)
-    params = data.name&args
-    body = genNewBody(
-      data.name,
-      args.decomposeDefsIntoVars()
-    )
-  result = newProc(name, params, body)
-  if data.isPub:
-    markWithPostfix(result.name)
-  result[4] = nnkPragma.newTree(
-    newColonExpr(ident"deprecated", newLit"Use Type.new instead")
-  )
-
-
 proc defNew(data: ClassData): NimNode =
   let args = data.allArgList.map(simplifyIdentDefs)
   let
@@ -355,26 +323,17 @@ proc defNew(data: ClassData): NimNode =
     markWithPostfix(result.name)
 
 
-proc defOldNewWithBase(
-    data: ClassData
-): NimNode {.compileTime.} =
-  ## Adds signatures and insert body to `constructor`.
-  data.ctorBase
-    .addOldSignatures(data)
-    .insertBody(data)
-
-
 proc defNewWithBase(
     data: ClassData
 ): NimNode {.compileTime.} =
   ## Adds signatures and insert body to `constructor`.
   if data.generics.len != 0:
-    data.ctorBase2[2] = nnkGenericParams.newTree(
+    data.ctorBase[2] = nnkGenericParams.newTree(
       nnkIdentDefs.newTree(
         data.generics & newEmptyNode() & newEmptyNode()
       )
     )
-  data.ctorBase2
+  data.ctorBase
     .addSignatures(data)
     .insertBody(data)
 
@@ -458,7 +417,7 @@ proc getClassMembers(
           self.data.ctorBase[4] = nnkPragma.newTree(
             newColonExpr(ident"deprecated", newLit"Use Type.new instead")
           )
-          self.data.ctorBase2 = node.copy()
+          self.data.ctorBase = node.copy()
         else:
           error "Constructor already exists", node
       else:
@@ -497,22 +456,11 @@ proc defConstructor(
   theClass.insert(
     1,
     if self.data.ctorBase.kind == nnkEmpty:
-      self.data.defOldNew()
+      self.data.defNew()
     else:
       self.data.ctorBase.params = nnkFormalParams.newTree(
         newEmptyNode() &
         self.data.ctorBase.inferArgTypes(self.data.allArgList)
-      )
-      self.data.defOldNewWithBase()
-  )
-  theClass.insert(
-    1,
-    if self.data.ctorBase2.kind == nnkEmpty:
-      self.data.defNew()
-    else:
-      self.data.ctorBase2.params = nnkFormalParams.newTree(
-        newEmptyNode() &
-        self.data.ctorBase2.inferArgTypes(self.data.allArgList)
       )
       self.data.defNewWithBase()
   )
@@ -570,7 +518,7 @@ proc getClassMembers(
           self.data.ctorBase[4] = nnkPragma.newTree(
             newColonExpr(ident"deprecated", newLit"Use Type.new instead")
           )
-          self.data.ctorBase2 = node.copy()
+          self.data.ctorBase = node.copy()
         else:
           error "Constructor already exists", node
       else:
@@ -602,7 +550,6 @@ proc defConstructor(
   if not (
     self.data.ctorBase.kind == nnkEmpty or "noNewDef" in self.data.pragmas
   ):
-    theClass.insert 1, self.data.defOldNewWithBase()
     theClass.insert 1, self.data.defNewWithBase()
 
 
@@ -727,7 +674,7 @@ proc getClassMembers(
           self.data.ctorBase[4] = nnkPragma.newTree(
             newColonExpr(ident"deprecated", newLit"Use Type.new instead")
           )
-          self.data.ctorBase2 = node.copy()
+          self.data.ctorBase = node.copy()
         else:
           error "Constructor already exists", node
       else:
@@ -812,7 +759,7 @@ proc getClassMembers(
           self.data.ctorBase[4] = nnkPragma.newTree(
             newColonExpr(ident"deprecated", newLit"Use Type.new instead")
           )
-          self.data.ctorBase2 = node.copy()
+          self.data.ctorBase = node.copy()
         else:
           error "Constructor already exists", node
       else:
@@ -846,22 +793,11 @@ proc defConstructor(
   theClass.insert(
     1,
     if self.data.ctorBase.kind == nnkEmpty:
-      self.data.defOldNew()
+      self.data.defNew()
     else:
       self.data.ctorBase.params = nnkFormalParams.newTree(
         newEmptyNode() &
         self.data.ctorBase.inferArgTypes(self.data.allArgList)
-      )
-      self.data.defOldNewWithBase()
-  )
-  theClass.insert(
-    1,
-    if self.data.ctorBase2.kind == nnkEmpty:
-      self.data.defNew()
-    else:
-      self.data.ctorBase2.params = nnkFormalParams.newTree(
-        newEmptyNode() &
-        self.data.ctorBase2.inferArgTypes(self.data.allArgList)
       )
       self.data.defNewWithBase()
   )

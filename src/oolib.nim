@@ -19,7 +19,6 @@ macro class*(head: untyped, body: untyped = newEmptyNode()): untyped =
   context.defClass(theClass)
   context.defBody(theClass)
   result = theClass
-  echo result.repr
 
 
 proc isClass*(T: typedesc): bool =
