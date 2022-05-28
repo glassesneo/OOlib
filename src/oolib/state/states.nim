@@ -44,7 +44,6 @@ template generateNewState(t) =
     )
 
 
-
 template generateToInterface(t) =
   proc toInterface*(self: t): IState {.compileTime.} =
     result = (
@@ -171,6 +170,37 @@ func hasDefault(node: NimNode): bool {.compileTime.} =
   not (node.last.kind == nnkEmpty)
 
 
+func inferValType(node: NimNode) {.compileTime.} =
+  ## Infers type from default if a type annotation is empty.
+  ## `node` has to be `nnkIdentDefs` or `nnkConstDef`.
+  node.expectKind {nnkIdentDefs, nnkConstDef}
+  node[^2] = node[^2] or newCall(ident"typeof", node[^1])
+
+
+func inferArgType(
+    v: NimNode;
+    argList: seq[NimNode]
+): NimNode {.compileTime.} =
+  result = newIdentDefs(v, newEmptyNode())
+  for def in argList.map(simplifyIdentDefs):
+    for arg in def[0..^3]:
+      if v == arg:
+        result[^2] = def[^2]
+        return
+
+
+func inferArgTypes(
+    constructor: NimNode,
+    argList: seq[NimNode],
+): seq[NimNode] {.compileTime.} =
+  for def in constructor.params[1..^1]:
+    if newEmptyNode() notin def[^2..^1]:
+      result.add def
+      continue
+    for v in def[0..^3]:
+      result.add v.inferArgType(argList)
+
+
 func insertBody(
     constructor: NimNode;
     data: ClassData
@@ -230,33 +260,6 @@ proc addSignatures(
     )
   )
   return constructor
-
-
-proc assistWithOldDef(
-    constructor: NimNode;
-    data: ClassData
-): NimNode {.compileTime.} =
-  ## Adds signatures and insert body to `constructor`.
-  constructor
-    .addOldSignatures(data)
-    .insertBody(data)
-
-
-proc assistWithDef(
-    constructor: NimNode;
-    data: ClassData
-): NimNode {.compileTime.} =
-  ## Adds signatures and insert body to `constructor`.
-  constructor.expectKind nnkProcDef
-  if data.generics.len != 0:
-    constructor[2] = nnkGenericParams.newTree(
-      nnkIdentDefs.newTree(
-        data.generics & newEmptyNode() & newEmptyNode()
-      )
-    )
-  constructor
-    .addSignatures(data)
-    .insertBody(data)
 
 
 func rmSelf(theProc: NimNode): NimNode {.compileTime.} =
@@ -352,6 +355,30 @@ proc defNew(data: ClassData): NimNode =
     markWithPostfix(result.name)
 
 
+proc defOldNewWithBase(
+    data: ClassData
+): NimNode {.compileTime.} =
+  ## Adds signatures and insert body to `constructor`.
+  data.ctorBase
+    .addOldSignatures(data)
+    .insertBody(data)
+
+
+proc defNewWithBase(
+    data: ClassData
+): NimNode {.compileTime.} =
+  ## Adds signatures and insert body to `constructor`.
+  if data.generics.len != 0:
+    data.ctorBase2[2] = nnkGenericParams.newTree(
+      nnkIdentDefs.newTree(
+        data.generics & newEmptyNode() & newEmptyNode()
+      )
+    )
+  data.ctorBase2
+    .addSignatures(data)
+    .insertBody(data)
+
+
 func insertSelf(theProc, typeName: NimNode): NimNode {.compileTime.} =
   ## Inserts `self: typeName` in the 1st of theProc.params.
   result = theProc
@@ -375,37 +402,6 @@ func convertFuncToProcWithPragma(theFunc: NimNode): NimNode {.compileTime.} =
   result = nnkProcDef.newNimNode()
   theFunc.copyChildrenTo result
   result.addNoSideEffectPragma()
-
-
-func inferValType(node: NimNode) {.compileTime.} =
-  ## Infers type from default if a type annotation is empty.
-  ## `node` has to be `nnkIdentDefs` or `nnkConstDef`.
-  node.expectKind {nnkIdentDefs, nnkConstDef}
-  node[^2] = node[^2] or newCall(ident"typeof", node[^1])
-
-
-func inferArgType(
-    v: NimNode;
-    argList: seq[NimNode]
-): NimNode {.compileTime.} =
-  result = newIdentDefs(v, newEmptyNode())
-  for def in argList.map(simplifyIdentDefs):
-    for arg in def[0..^3]:
-      if v == arg:
-        result[^2] = def[^2]
-        return
-
-
-func inferArgTypes(
-    constructor: NimNode,
-    argList: seq[NimNode],
-): seq[NimNode] {.compileTime.} =
-  for def in constructor.params[1..^1]:
-    if newEmptyNode() notin def[^2..^1]:
-      result.add def
-      continue
-    for v in def[0..^3]:
-      result.add v.inferArgType(argList)
 
 
 func isConstructor(node: NimNode): bool {.compileTime.} =
@@ -507,7 +503,7 @@ proc defConstructor(
         newEmptyNode() &
         self.data.ctorBase.inferArgTypes(self.data.allArgList)
       )
-      self.data.ctorBase.assistWithOldDef(self.data)
+      self.data.defOldNewWithBase()
   )
   theClass.insert(
     1,
@@ -518,7 +514,7 @@ proc defConstructor(
         newEmptyNode() &
         self.data.ctorBase2.inferArgTypes(self.data.allArgList)
       )
-      self.data.ctorBase2.assistWithDef(self.data)
+      self.data.defNewWithBase()
   )
 
 
@@ -606,8 +602,8 @@ proc defConstructor(
   if not (
     self.data.ctorBase.kind == nnkEmpty or "noNewDef" in self.data.pragmas
   ):
-    theClass.insert 1, self.data.ctorBase.assistWithOldDef(self.data)
-    theClass.insert 1, self.data.ctorBase2.assistWithDef(self.data)
+    theClass.insert 1, self.data.defOldNewWithBase()
+    theClass.insert 1, self.data.defNewWithBase()
 
 
 proc defMemberVars(
@@ -856,9 +852,7 @@ proc defConstructor(
         newEmptyNode() &
         self.data.ctorBase.inferArgTypes(self.data.allArgList)
       )
-      self.data.ctorBase.assistWithOldDef(
-        self.data,
-      )
+      self.data.defOldNewWithBase()
   )
   theClass.insert(
     1,
@@ -869,9 +863,7 @@ proc defConstructor(
         newEmptyNode() &
         self.data.ctorBase2.inferArgTypes(self.data.allArgList)
       )
-      self.data.ctorBase2.assistWithDef(
-        self.data,
-      )
+      self.data.defNewWithBase()
   )
 
 
