@@ -23,13 +23,8 @@ type
     name, base: NimNode
     pragmas: seq[string]
     generics: seq[NimNode]
-    body, ctorBase, ctorBase2: NimNode
+    body, ctorBase: NimNode
     argList, ignoredArgList, constList: seq[NimNode]
-
-  ClassMembers* = tuple
-    body, ctorBase, ctorBase2: NimNode
-    argList, ignoredArgList, constList: seq[NimNode]
-
 
   ProtocolKind* {.pure.} = enum
     Normal
