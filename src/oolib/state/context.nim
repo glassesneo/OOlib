@@ -7,22 +7,22 @@ type
     state: IState
 
 
-proc newContext*(state: IState): Context {.compileTime.} =
-  Context(state: state)
-
-
-proc getClassMembers*(
+proc getClassData(
     self: Context,
     body: NimNode,
 ) {.compileTime.} =
-  self.state.getClassMembers(body)
+  self.state.getClassData(body)
+
+
+proc newContext*(state: IState, body: NimNode): Context {.compileTime.} =
+  result = Context(state: state)
+  result.getClassData(body)
 
 
 proc defClass*(
-    self: Context,
-    theClass: NimNode,
-) {.compileTime.} =
-  self.state.defClass(theClass)
+    self: Context
+): NimNode {.compileTime.} =
+  self.state.defClass()
 
 
 proc defBody*(

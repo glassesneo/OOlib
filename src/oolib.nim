@@ -13,12 +13,10 @@ export
 macro class*(head: untyped, body: untyped = newEmptyNode()): untyped =
   let
     info = getClassInfo(head)
-    context = newContext(newState(info))
-    theClass = newStmtList()
-  context.getClassMembers(body)
-  context.defClass(theClass)
-  context.defBody(theClass)
-  result = theClass
+    context = newContext(newState(info), body)
+  result = newStmtList()
+  result.add context.defClass()
+  context.defBody(result)
 
 
 proc isClass*(T: typedesc): bool =

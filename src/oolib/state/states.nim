@@ -35,7 +35,7 @@ template generateNewState(t) =
         pragmas: info.pragmas,
         generics: info.generics,
         body: newStmtList(),
-        ctorBase: newEmptyNode(),
+        constructor: newEmptyNode(),
         argList: @[],
         ignoredArgList: @[],
         constList: @[]
@@ -47,27 +47,28 @@ template generateToInterface(t) =
   proc toInterface*(self: t): IState {.compileTime.} =
     result = (
       data: self.data,
-      getClassMembers:
-      proc(body: NimNode) =
-        self.getClassMembers(body),
-      defClass: proc(theClass: NimNode) =
-        self.defClass(theClass),
+      getClassData:
+      proc(body: NimNode) = self.getClassData(body),
+      defClass:
+      () => self.defClass(),
       defConstructor:
-      proc(theClass: NimNode) =
-        self.defConstructor(theClass),
-      defMemberVars: proc(theClass: NimNode) =
-        self.defMemberVars(theClass),
+      (theClass: NimNode) => self.defConstructor(theClass),
+      defMemberVars:
+      (theClass: NimNode) => self.defMemberVars(theClass),
       defMemberRoutines:
-      proc(theClass: NimNode) =
-        self.defMemberRoutines(theClass),
+      (theClass: NimNode) => self.defMemberRoutines(theClass),
       defBody:
-      proc(theClass: NimNode) =
-        self.defBody(theClass)
+      (theClass: NimNode) => self.defBody(theClass)
     )
 
 
 func hasAsterisk(node: NimNode): bool {.compileTime.} =
   node.kind == nnkPostfix and node[0].eqIdent"*"
+
+
+func removeDefault(v: NimNode): NimNode {.compileTime.} =
+  v[^1] = newEmptyNode()
+  return v
 
 
 proc removeAsteriskFromIdent(def: NimNode): NimNode {.compileTime.} =
@@ -101,9 +102,9 @@ func toRecList(s: seq[NimNode]): NimNode {.compileTime.} =
     result.add def
 
 
-proc genConstant(className: string; node: NimNode): NimNode {.compileTime.} =
+proc genConstant(data: ClassData, node: NimNode): NimNode {.compileTime.} =
   ## Generates both a template for use with typedesc and a method for dynamic dispatch.
-  newStmtList(
+  result = newStmtList(
     # template
     nnkTemplateDef.newTree(
       node[0],
@@ -115,7 +116,7 @@ proc genConstant(className: string; node: NimNode): NimNode {.compileTime.} =
           ident"self",
           nnkBracketExpr.newTree(
             ident"typedesc",
-            ident className
+            data.name
       ),
       newEmptyNode()
     )
@@ -133,7 +134,7 @@ proc genConstant(className: string; node: NimNode): NimNode {.compileTime.} =
         node[1],
         newIdentDefs(
           ident"self",
-          ident className,
+          data.name,
           newEmptyNode(),
       )
     ),
@@ -188,37 +189,39 @@ func inferArgType(
         return
 
 
-func inferArgTypes(
-    constructor: NimNode,
-    argList: seq[NimNode],
-): seq[NimNode] {.compileTime.} =
-  for def in constructor.params[1..^1]:
+func inferArgTypes(data: ClassData): seq[NimNode] {.compileTime.} =
+  for def in data.constructor.params[1..^1]:
     if newEmptyNode() notin def[^2..^1]:
       result.add def
       continue
     for v in def[0..^3]:
-      result.add v.inferArgType(argList)
+      result.add v.inferArgType(data.allArgList)
+
+
+func inferConstructorArgTypes(data: ClassData) {.compileTime.} =
+  ## Infers types of constructor arguments.
+  data.constructor.params = nnkFormalParams.newTree(
+    newEmptyNode() &
+    data.inferArgTypes()
+  )
 
 
 func insertBody(
-    constructor: NimNode;
     data: ClassData
-): NimNode {.compileTime.} =
-  constructor.expectKind nnkProcDef
-  let args = data.allArgList.filter(hasDefault).map(simplifyIdentDefs)
-  result = constructor
-  if result.body[0].kind == nnkDiscardStmt:
-    return
-  result.body.insert 0, newVarStmt(ident"self", newCall result.params[0])
-  for v in args.decomposeDefsIntoVars():
-    result.body.insert 1, quote do: self.`v` = `v`
-  result.body.add quote do: result = self
-
-
-proc insertArgs(
-    constructor: NimNode;
-    vars: seq[NimNode]
 ) {.compileTime.} =
+  let args = data.allArgList.filter(hasDefault).map(simplifyIdentDefs)
+  if data.constructor.body[0].kind == nnkDiscardStmt:
+    return
+  data.constructor.body.insert(
+    0,
+    newVarStmt(ident"self", newCall data.constructor.params[0])
+  )
+  for v in args.decomposeDefsIntoVars():
+    data.constructor.body.insert 1, quote do: self.`v` = `v`
+  data.constructor.body.add quote do: result = self
+
+
+proc insertArgs(constructor: NimNode, vars: seq[NimNode]) {.compileTime.} =
   ## Inserts `vars` to constructor args.
   constructor.expectKind nnkProcDef
   for v in vars:
@@ -226,25 +229,22 @@ proc insertArgs(
 
 
 proc addSignatures(
-    constructor: NimNode;
     data: ClassData
-): NimNode {.compileTime.} =
-  ## Adds signatures to `constructor`.
-  constructor.expectKind nnkProcDef
+) {.compileTime.} =
+  ## Adds signatures to `data.constructor`.
   let args = data.allArgList.filter(hasDefault).map(simplifyIdentDefs)
-  constructor.name = ident"new"
+  data.constructor.name = ident"new"
   if data.isPub:
-    markWithPostfix(constructor.name)
-  constructor.params[0] = data.nameWithGenerics
-  constructor.insertArgs(args)
-  constructor.params.insert 1, newIdentDefs(
+    markWithPostfix(data.constructor.name)
+  data.constructor.params[0] = data.nameWithGenerics
+  data.constructor.insertArgs(args)
+  data.constructor.params.insert 1, newIdentDefs(
     ident"_",
     nnkBracketExpr.newTree(
       ident"typedesc",
       data.nameWithGenerics
     )
   )
-  return constructor
 
 
 func rmSelf(theProc: NimNode): NimNode {.compileTime.} =
@@ -299,7 +299,7 @@ proc genNewBody(
   result.add quote do: result = self
 
 
-proc defNew(data: ClassData): NimNode =
+proc defNew(data: var ClassData) =
   let args = data.allArgList.map(simplifyIdentDefs)
   let
     name = ident"new"
@@ -313,29 +313,28 @@ proc defNew(data: ClassData): NimNode =
       data.nameWithGenerics,
       args.decomposeDefsIntoVars()
     )
-  result = newProc(name, params, body)
-  result[2] = nnkGenericParams.newTree(
+  data.constructor = newProc(name, params, body)
+  data.constructor[2] = nnkGenericParams.newTree(
     nnkIdentDefs.newTree(
       data.generics & newEmptyNode() & newEmptyNode()
     )
   )
   if data.isPub:
-    markWithPostfix(result.name)
+    markWithPostfix(data.constructor.name)
 
 
 proc defNewWithBase(
     data: ClassData
-): NimNode {.compileTime.} =
+) {.compileTime.} =
   ## Adds signatures and insert body to `constructor`.
   if data.generics.len != 0:
-    data.ctorBase[2] = nnkGenericParams.newTree(
+    data.constructor[2] = nnkGenericParams.newTree(
       nnkIdentDefs.newTree(
         data.generics & newEmptyNode() & newEmptyNode()
       )
     )
-  data.ctorBase
-    .addSignatures(data)
-    .insertBody(data)
+  data.addSignatures()
+  data.insertBody()
 
 
 func insertSelf(theProc, typeName: NimNode): NimNode {.compileTime.} =
@@ -386,7 +385,7 @@ func insertSuperStmt(theProc, baseName: NimNode): NimNode {.compileTime.} =
   result.body.insert 0, newSuperStmt(baseName)
 
 
-proc getClassMembers(
+proc getClassData(
   self: NormalState;
   body: NimNode;
 ) {.compileTime.} =
@@ -412,12 +411,12 @@ proc getClassMembers(
         self.data.constList.add n
     of nnkProcDef:
       if node.isConstructor:
-        if self.data.ctorBase.kind == nnkEmpty:
-          self.data.ctorBase = node.copy()
-          self.data.ctorBase[4] = nnkPragma.newTree(
+        if self.data.constructor.kind == nnkEmpty:
+          self.data.constructor = node.copy()
+          self.data.constructor[4] = nnkPragma.newTree(
             newColonExpr(ident"deprecated", newLit"Use Type.new instead")
           )
-          self.data.ctorBase = node.copy()
+          self.data.constructor = node.copy()
         else:
           error "Constructor already exists", node
       else:
@@ -430,21 +429,19 @@ proc getClassMembers(
 
 proc defClass(
     self: NormalState;
-    theClass: NimNode;
-) {.compileTime.} =
-  var classNode = getAst defObj(self.data.name)
+): NimNode {.compileTime.} =
+  result = getAst defObj(self.data.name)
   if self.data.generics != @[]:
-    classNode[0][1] = nnkGenericParams.newTree(
+    result[0][1] = nnkGenericParams.newTree(
       nnkIdentDefs.newTree(
         self.data.generics & newEmptyNode() & newEmptyNode()
       )
     )
   if self.data.isPub:
-    markWithPostfix(classNode[0][0])
+    markWithPostfix(result[0][0])
   if "open" in self.data.pragmas:
-    classNode[0][2][0][1] = nnkOfInherit.newTree ident"RootObj"
-  newPragmaExpr(classNode[0][0], "pClass")
-  theClass.add classNode
+    result[0][2][0][1] = nnkOfInherit.newTree ident"RootObj"
+  newPragmaExpr(result[0][0], "pClass")
 
 
 proc defConstructor(
@@ -453,16 +450,14 @@ proc defConstructor(
 ) {.compileTime.} =
   if "noNewDef" in self.data.pragmas:
     return
+  if self.data.constructor.kind == nnkEmpty:
+    self.data.defNew()
+  else:
+    self.data.inferConstructorArgTypes()
+    self.data.defNewWithBase()
   theClass.insert(
     1,
-    if self.data.ctorBase.kind == nnkEmpty:
-      self.data.defNew()
-    else:
-      self.data.ctorBase.params = nnkFormalParams.newTree(
-        newEmptyNode() &
-        self.data.ctorBase.inferArgTypes(self.data.allArgList)
-      )
-      self.data.defNewWithBase()
+    self.data.constructor
   )
 
 
@@ -470,7 +465,7 @@ proc defMemberVars(
     self: NormalState;
     theClass: NimNode;
 ) {.compileTime.} =
-  theClass[0][0][2][0][2] = self.data.argList.withoutDefault().toRecList()
+  theClass[0][0][2][0][2] = self.data.argList.map(removeDefault).toRecList()
 
 
 proc defMemberRoutines(
@@ -479,7 +474,7 @@ proc defMemberRoutines(
 ) {.compileTime.} =
   theClass.add self.data.body.copy()
   for c in self.data.constList:
-    theClass.insert 1, genConstant(self.data.name.strVal, c)
+    theClass.insert 1, self.data.genConstant(c)
 
 
 proc defBody(
@@ -491,7 +486,7 @@ proc defBody(
   self.defMemberRoutines(theClass)
 
 
-proc getClassMembers(
+proc getClassData(
   self: InheritanceState;
   body: NimNode;
 ) {.compileTime.} =
@@ -513,12 +508,12 @@ proc getClassMembers(
         self.data.constList.add n
     of nnkProcDef:
       if node.isConstructor:
-        if self.data.ctorBase.kind == nnkEmpty:
-          self.data.ctorBase = node.copy()
-          self.data.ctorBase[4] = nnkPragma.newTree(
+        if self.data.constructor.kind == nnkEmpty:
+          self.data.constructor = node.copy()
+          self.data.constructor[4] = nnkPragma.newTree(
             newColonExpr(ident"deprecated", newLit"Use Type.new instead")
           )
-          self.data.ctorBase = node.copy()
+          self.data.constructor = node.copy()
         else:
           error "Constructor already exists", node
       else:
@@ -534,13 +529,11 @@ proc getClassMembers(
 
 proc defClass(
     self: InheritanceState;
-    theClass: NimNode;
-) {.compileTime.} =
-  var classNode = getAst defObjWithBase(self.data.name, self.data.base)
+): NimNode {.compileTime.} =
+  result = getAst defObjWithBase(self.data.name, self.data.base)
   if self.data.isPub:
-    markWithPostfix(classNode[0][0])
-  newPragmaExpr(classNode[0][0], "pClass")
-  theClass.add classNode
+    markWithPostfix(result[0][0])
+  newPragmaExpr(result[0][0], "pClass")
 
 
 proc defConstructor(
@@ -548,16 +541,17 @@ proc defConstructor(
     theClass: NimNode;
 ) {.compileTime.} =
   if not (
-    self.data.ctorBase.kind == nnkEmpty or "noNewDef" in self.data.pragmas
+    self.data.constructor.kind == nnkEmpty or "noNewDef" in self.data.pragmas
   ):
-    theClass.insert 1, self.data.defNewWithBase()
+    self.data.defNewWithBase()
+    theClass.insert 1, self.data.constructor
 
 
 proc defMemberVars(
     self: InheritanceState;
     theClass: NimNode;
 ) {.compileTime.} =
-  theClass[0][0][2][0][2] = self.data.argList.withoutDefault().toRecList()
+  theClass[0][0][2][0][2] = self.data.argList.map(removeDefault).toRecList()
 
 
 proc defMemberRoutines(
@@ -566,7 +560,7 @@ proc defMemberRoutines(
 ) {.compileTime.} =
   theClass.add self.data.body.copy()
   for c in self.data.constList:
-    theClass.insert 1, genConstant(self.data.name.strVal, c)
+    theClass.insert 1, self.data.genConstant(c)
 
 
 proc defBody(
@@ -578,7 +572,7 @@ proc defBody(
   self.defMemberRoutines(theClass)
 
 
-proc getClassMembers(
+proc getClassData(
   self: DistinctState;
   body: NimNode;
 ) {.compileTime.} =
@@ -601,16 +595,14 @@ proc getClassMembers(
 
 proc defClass(
     self: DistinctState;
-    theClass: NimNode;
-) {.compileTime.} =
-  var classNode = getAst defDistinct(self.data.name, self.data.base)
+): NimNode {.compileTime.} =
+  result = getAst defDistinct(self.data.name, self.data.base)
   if self.data.isPub:
-    markWithPostfix(classNode[0][0][0])
+    markWithPostfix(result[0][0][0])
   if "open" in self.data.pragmas:
     # replace {.final.} with {.inheritable.}
-    classNode[0][0][1][0] = ident "inheritable"
-    classNode[0][0][1].add ident "pClass"
-  theClass.add classNode
+    result[0][0][1][0] = ident "inheritable"
+    result[0][0][1].add ident "pClass"
 
 
 proc defConstructor(
@@ -633,7 +625,7 @@ proc defMemberRoutines(
 ) {.compileTime.} =
   theClass.add self.data.body.copy()
   for c in self.data.constList:
-    theClass.insert 1, genConstant(self.data.name.strVal, c)
+    theClass.insert 1, self.data.genConstant(c)
 
 
 proc defBody(
@@ -645,7 +637,7 @@ proc defBody(
   self.defMemberRoutines(theClass)
 
 
-proc getClassMembers(
+proc getClassData(
   self: AliasState;
   body: NimNode;
 ) {.compileTime.} =
@@ -669,12 +661,12 @@ proc getClassMembers(
         self.data.constList.add n
     of nnkProcDef:
       if self.data.base.eqIdent"tuple" and node.isConstructor:
-        if self.data.ctorBase.kind == nnkEmpty:
-          self.data.ctorBase = node.copy()
-          self.data.ctorBase[4] = nnkPragma.newTree(
+        if self.data.constructor.kind == nnkEmpty:
+          self.data.constructor = node.copy()
+          self.data.constructor[4] = nnkPragma.newTree(
             newColonExpr(ident"deprecated", newLit"Use Type.new instead")
           )
-          self.data.ctorBase = node.copy()
+          self.data.constructor = node.copy()
         else:
           error "Constructor already exists", node
       else:
@@ -687,13 +679,11 @@ proc getClassMembers(
 
 proc defClass(
     self: AliasState;
-    theClass: NimNode;
-) {.compileTime.} =
-  var classNode = getAst defAlias(self.data.name, self.data.base)
+): NimNode {.compileTime.} =
+  result = getAst defAlias(self.data.name, self.data.base)
   if self.data.isPub:
-    markWithPostfix(classNode[0][0])
-  newPragmaExpr(classNode[0][0], "pClass")
-  theClass.add classNode
+    markWithPostfix(result[0][0])
+  newPragmaExpr(result[0][0], "pClass")
 
 
 proc defConstructor(
@@ -709,7 +699,7 @@ proc defMemberVars(
 ) {.compileTime.} =
   if self.data.argList.len != 0:
     theClass[0][0][2] = nnkTupleTy.newTree(
-      self.data.argList.withoutDefault()
+      self.data.argList.map(removeDefault)
     )
 
 
@@ -719,7 +709,7 @@ proc defMemberRoutines(
 ) {.compileTime.} =
   theClass.add self.data.body.copy()
   for c in self.data.constList:
-    theClass.insert 1, genConstant(self.data.name.strVal, c)
+    theClass.insert 1, self.data.genConstant(c)
 
 
 proc defBody(
@@ -731,7 +721,7 @@ proc defBody(
   self.defMemberRoutines(theClass)
 
 
-proc getClassMembers(
+proc getClassData(
   self: ImplementationState;
   body: NimNode;
 ) {.compileTime.} =
@@ -754,12 +744,12 @@ proc getClassMembers(
         self.data.constList.add n
     of nnkProcDef:
       if node.isConstructor:
-        if self.data.ctorBase.kind == nnkEmpty:
-          self.data.ctorBase = node.copy()
-          self.data.ctorBase[4] = nnkPragma.newTree(
+        if self.data.constructor.kind == nnkEmpty:
+          self.data.constructor = node.copy()
+          self.data.constructor[4] = nnkPragma.newTree(
             newColonExpr(ident"deprecated", newLit"Use Type.new instead")
           )
-          self.data.ctorBase = node.copy()
+          self.data.constructor = node.copy()
         else:
           error "Constructor already exists", node
       else:
@@ -775,13 +765,11 @@ proc getClassMembers(
 
 proc defClass(
     self: ImplementationState;
-    theClass: NimNode;
-) {.compileTime.} =
-  var classNode = getAst defObj(self.data.name)
+): NimNode {.compileTime.} =
+  result = getAst defObj(self.data.name)
   if self.data.isPub:
-    markWithPostfix(classNode[0][0])
-  newPragmaExpr(classNode[0][0], "pClass")
-  theClass.add classNode
+    markWithPostfix(result[0][0])
+  newPragmaExpr(result[0][0], "pClass")
 
 
 proc defConstructor(
@@ -790,16 +778,14 @@ proc defConstructor(
 ) {.compileTime.} =
   if "noNewDef" in self.data.pragmas:
     return
+  if self.data.constructor.kind == nnkEmpty:
+    self.data.defNew()
+  else:
+    self.data.inferConstructorArgTypes()
+    self.data.defNewWithBase()
   theClass.insert(
     1,
-    if self.data.ctorBase.kind == nnkEmpty:
-      self.data.defNew()
-    else:
-      self.data.ctorBase.params = nnkFormalParams.newTree(
-        newEmptyNode() &
-        self.data.ctorBase.inferArgTypes(self.data.allArgList)
-      )
-      self.data.defNewWithBase()
+    self.data.constructor
   )
 
 
@@ -807,7 +793,7 @@ proc defMemberVars(
     self: ImplementationState;
     theClass: NimNode;
 ) {.compileTime.} =
-  theClass[0][0][2][0][2] = self.data.allArgList.withoutDefault().toRecList()
+  theClass[0][0][2][0][2] = self.data.allArgList.map(removeDefault).toRecList()
 
 
 proc defMemberRoutines(
@@ -816,7 +802,7 @@ proc defMemberRoutines(
 ) {.compileTime.} =
   theClass.add self.data.body.copy()
   for c in self.data.constList:
-    theClass.insert 1, genConstant(self.data.name.strVal, c)
+    theClass.insert 1, self.data.genConstant(c)
   let interfaceProc = newProc(
     ident"toInterface",
     [self.data.base],

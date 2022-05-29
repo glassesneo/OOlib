@@ -1,6 +1,5 @@
 import
-  std/macros,
-  std/sugar
+  std/macros
 
 
 type
@@ -23,7 +22,7 @@ type
     name, base: NimNode
     pragmas: seq[string]
     generics: seq[NimNode]
-    body, ctorBase: NimNode
+    body, constructor: NimNode
     argList, ignoredArgList, constList: seq[NimNode]
 
   ProtocolKind* {.pure.} = enum
@@ -49,10 +48,3 @@ proc nameWithGenerics*(data: ClassData): NimNode {.compileTime.} =
 
 func allArgList*(data: ClassData): seq[NimNode] {.compileTime.} =
   data.argList & data.ignoredArgList
-
-
-func withoutDefault*(argList: seq[NimNode]): seq[NimNode] =
-  result = collect:
-    for v in argList:
-      v[^1] = newEmptyNode()
-      v
