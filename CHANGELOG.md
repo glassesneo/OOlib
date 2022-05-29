@@ -5,6 +5,14 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
+## Added
+- NamedTuple implementation [#78](https://github.com/Glasses-Neo/OOlib/issues/78)
+  - alias classes aliasing tuples now become named tuples and member variables can be defined
+- Argument type inference [#101](https://github.com/Glasses-Neo/OOlib/issues/101)
+  - types of arguments in constructors are now unnecessary
+
+## Removed
+- Old constructors are now removed [#96](https://github.com/Glasses-Neo/OOlib/issues/96)
 
 ## [v0.4.3] -2022-5-22
 ### Fixed
