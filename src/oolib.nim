@@ -17,6 +17,7 @@ macro class*(head: untyped, body: untyped = newEmptyNode()): untyped =
   result = newStmtList()
   result.add context.defClass()
   context.defBody(result)
+  echo result.repr
 
 
 proc isClass*(T: typedesc): bool =

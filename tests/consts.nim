@@ -10,13 +10,16 @@ class pub A {.open.}:
 
   var pos: float32 = 0f
 
+  method `new`(pos: float32) {.base.} =
+    self.pos = pos
+
   method update(dt: float32) {.base.} =
     self.pos += self.speed
 
 class pub B of A:
   const speed* = 15.0f
 
-  proc `new`(pos = 0f): B =
+  method `new`(pos = 0f): B =
     self.pos = pos
 
 var a = A.new(pos = 5f)
