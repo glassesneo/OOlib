@@ -223,7 +223,6 @@ func insertBody(
 
 proc insertArgs(constructor: NimNode, vars: seq[NimNode]) {.compileTime.} =
   ## Inserts `vars` to constructor args.
-  constructor.expectKind nnkProcDef
   for v in vars:
     constructor.params.add v
 
@@ -314,11 +313,6 @@ proc defNew(data: var ClassData) =
       args.decomposeDefsIntoVars()
     )
   data.constructor = newProc(name, params, body)
-  data.constructor[2] = nnkGenericParams.newTree(
-    nnkIdentDefs.newTree(
-      data.generics & newEmptyNode() & newEmptyNode()
-    )
-  )
   if data.isPub:
     markWithPostfix(data.constructor.name)
 
@@ -327,12 +321,6 @@ proc defNewWithBase(
     data: ClassData
 ) {.compileTime.} =
   ## Adds signatures and insert body to `constructor`.
-  if data.generics.len != 0:
-    data.constructor[2] = nnkGenericParams.newTree(
-      nnkIdentDefs.newTree(
-        data.generics & newEmptyNode() & newEmptyNode()
-      )
-    )
   data.addSignatures()
   data.insertBody()
 
@@ -364,7 +352,7 @@ func convertFuncToProcWithPragma(theFunc: NimNode): NimNode {.compileTime.} =
 
 func isConstructor(node: NimNode): bool {.compileTime.} =
   ## `node` has to be `nnkProcDef`.
-  node.expectKind {nnkProcDef}
+  node.expectKind {nnkProcDef, nnkMethodDef}
   node[0].kind == nnkAccQuoted and node.name.eqIdent"new"
 
 
@@ -452,8 +440,23 @@ proc defConstructor(
     return
   if self.data.constructor.kind == nnkEmpty:
     self.data.defNew()
+    if self.data.generics.len != 0:
+      self.data.constructor.params[0] = self.data.nameWithGenerics
+      self.data.constructor.params[1] = newIdentDefs(
+        ident"_",
+        nnkBracketExpr.newTree(ident"typedesc", self.data.nameWithGenerics)
+      )
+      self.data.constructor[2] = nnkGenericParams.newTree(
+        nnkIdentDefs.newTree(
+          self.data.generics & newEmptyNode() & newEmptyNode()
+        )
+      )
   else:
     self.data.inferConstructorArgTypes()
+    if self.data.generics.len != 0:
+      self.data.constructor[2] = nnkGenericParams.newTree(
+        nnkIdentDefs.newTree(self.data.generics & newEmptyNode() & newEmptyNode())
+      )
     self.data.defNewWithBase()
   theClass.insert(
     1,
@@ -513,14 +516,24 @@ proc getClassData(
           self.data.constructor[4] = nnkPragma.newTree(
             newColonExpr(ident"deprecated", newLit"Use Type.new instead")
           )
-          self.data.constructor = node.copy()
+          self.data.constructor = node
+            .replaceSuper()
+            .insertSuperStmt(self.data.base)
         else:
           error "Constructor already exists", node
       else:
         self.data.body.add node.insertSelf(self.data.name)
     of nnkMethodDef:
-      node.body = replaceSuper(node.body)
-      self.data.body.add node.insertSelf(self.data.name).insertSuperStmt(self.data.base)
+      if node.isConstructor:
+        if self.data.constructor.kind == nnkEmpty:
+          self.data.constructor = node
+            .replaceSuper()
+            .insertSuperStmt(self.data.base)
+        else:
+          error "Constructor already exists", node
+      else:
+        node.body = replaceSuper(node.body)
+        self.data.body.add node.insertSelf(self.data.name).insertSuperStmt(self.data.base)
     of nnkFuncDef, nnkIteratorDef, nnkConverterDef, nnkTemplateDef:
       self.data.body.add node.insertSelf(self.data.name)
     else:
