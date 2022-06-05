@@ -1,7 +1,7 @@
 import
   std/macros,
   oolib / [sub, classes, protocols],
-  oolib / state / [states, context]
+  oolib / class_state / [states, context]
 
 export
   optBase,
