@@ -2,6 +2,7 @@ import
   std/macros,
   std/sequtils,
   std/sugar,
+  std/strformat,
   .. / util,
   .. / types,
   .. / tmpl,
@@ -834,11 +835,18 @@ proc defMemberRoutines(
   let compileProc = interfaceProc.copy
   if self.data.isPub:
     markWithPostfix(interfaceProc.name)
+  for p in self.data.body.filterIt(it.kind == nnkProcDef and "ignored" notin it[4]):
+    var
+      propertyNode = newDotExpr(self.data.base, p.name)
+      errorStatement = newStrLitNode fmt"property `{p.name.strVal}` is not in the definition of {self.data.base.strVal}"
+    theClass.add quote do:
+      when not compiles(`propertyNode`):
+        {.error: `errorStatement`.}
   theClass.add quote do:
     when compiles(`compileProc`):
       `interfaceProc`
     else:
-      {.error: "Some properties are missing".}
+      {.error: "Something went wrong".}
 
 
 proc defBody(
