@@ -7,9 +7,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## [Unreleased]
 ## Added
 - NamedTuple implementation [#78](https://github.com/Glasses-Neo/OOlib/issues/78)
-  - alias classes aliasing tuples now become named tuples and member variables can be defined
+  - classes aliasing tuples are now converted to named tuples and member variables can be defined
 - Argument type inference [#101](https://github.com/Glasses-Neo/OOlib/issues/101)
-  - types of arguments in constructors are now unnecessary
+  - types of arguments in constructors are now inserted automatically
+- Implemented procedures in `protocol` [#94](https://github.com/Glasses-Neo/OOlib/issues/94)
+  - procedures can now be implemented in protocols
+- `super` for constructor of inheritance classes [#102](https://github.com/Glasses-Neo/OOlib/issues/102)
 
 ## Removed
 - Old constructors are now removed [#96](https://github.com/Glasses-Neo/OOlib/issues/96)
@@ -80,7 +83,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## v0.1.0 - 2021-8-1
 - 🎉 First release!
 
-[Unreleased]: https://github.com/Glasses-Neo/OOlib/compare/0.4.2..HEAD
+[Unreleased]: https://github.com/Glasses-Neo/OOlib/compare/0.4.3..HEAD
+[v0.4.3]: https://github.com/Glasses-Neo/OOlib/compare/0.4.2..0.4.3
 [v0.4.2]: https://github.com/Glasses-Neo/OOlib/compare/0.4.1..0.4.2
 [v0.4.1]: https://github.com/Glasses-Neo/OOlib/compare/0.4.0..0.4.1
 [v0.4.0]: https://github.com/Glasses-Neo/OOlib/compare/0.3.0...0.4.0
