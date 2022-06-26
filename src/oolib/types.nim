@@ -34,7 +34,7 @@ type
     name: NimNode
 
   ProtocolMembers* = tuple
-    argList, procs: seq[NimNode]
+    argList, procs, implementedProcs: seq[NimNode]
 
 
 proc nameWithGenerics*(data: ClassData): NimNode {.compileTime.} =
