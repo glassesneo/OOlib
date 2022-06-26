@@ -32,18 +32,27 @@ proc parseProtocolHead*(head: NimNode): ProtocolInfo =
     error "Unsupported syntax", head
 
 
-proc parseProtocolBody*(body: NimNode): ProtocolMembers =
+func insertSelf(theProc, typeName: NimNode): NimNode {.compileTime.} =
+  ## Inserts `self: typeName` in the 1st of theProc.params.
+  result = theProc
+  result.params.insert 1, newIdentDefs(ident"self", typeName)
+
+
+proc parseProtocolBody*(body: NimNode, info: ProtocolInfo): ProtocolMembers =
   for node in body:
     case node.kind
     of nnkVarSection:
       for n in node:
         result.argList.add n
     of nnkProcDef, nnkFuncDef:
-      result.procs.add node
+      if node.body.kind == nnkEmpty:
+        result.procs.add node
+      else:
+        result.implementedProcs.add node.insertSelf(info.name)
     of nnkDiscardStmt:
       discard
     else:
-      discard
+      error "Unsupported syntax", node
 
 
 func toTupleMemberProc(node: NimNode): NimNode =
@@ -67,6 +76,8 @@ proc defProtocol*(info: ProtocolInfo, members: ProtocolMembers): NimNode =
     result[0][0][2].add v
   for p in members.procs:
     result[0][0][2].add p.toTupleMemberProc()
+  for p in members.implementedProcs:
+    result.add p
   if info.isPub:
     result[0][0][0] = nnkPostfix.newTree(ident"*", result[0][0][0])
   result[0][0][0] = nnkPragmaExpr.newTree(

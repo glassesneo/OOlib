@@ -32,7 +32,7 @@ proc isClass*[T](instance: T): bool =
 macro protocol*(head: untyped, body: untyped = newEmptyNode()): untyped =
   let
     info = parseProtocolHead(head)
-    members = parseProtocolBody(body)
+    members = parseProtocolBody(body, info)
   result = defProtocol(info, members)
 
 
