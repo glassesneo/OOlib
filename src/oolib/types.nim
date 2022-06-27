@@ -23,7 +23,7 @@ type
     pragmas: seq[string]
     generics: seq[NimNode]
     body, constructor: NimNode
-    argList, ignoredArgList, constList: seq[NimNode]
+    argList, ignoredArgList, initialArgList, constList: seq[NimNode]
 
   ProtocolKind* {.pure.} = enum
     Normal
@@ -47,4 +47,4 @@ proc nameWithGenerics*(data: ClassData): NimNode {.compileTime.} =
 
 
 func allArgList*(data: ClassData): seq[NimNode] {.compileTime.} =
-  data.argList & data.ignoredArgList
+  data.argList & data.ignoredArgList & data.initialArgList

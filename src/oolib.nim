@@ -7,7 +7,8 @@ export
   optBase,
   pClass,
   pProtocol,
-  ignored
+  ignored,
+  initial
 
 
 macro class*(head: untyped, body: untyped = newEmptyNode()): untyped =
