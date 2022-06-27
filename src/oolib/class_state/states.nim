@@ -38,6 +38,7 @@ template generateNewState(t) =
         body: newStmtList(),
         constructor: newEmptyNode(),
         argList: @[],
+        initialArgList: @[],
         ignoredArgList: @[],
         constList: @[]
       )
@@ -157,12 +158,10 @@ template newPragmaExpr(node; pragma: string) =
   )
 
 
-func decomposeDefsIntoVars(s: seq[NimNode]): seq[NimNode] {.compileTime.} =
+func decomposeIdentDefs(defs: NimNode): seq[NimNode] {.compileTime.} =
   result = collect:
-    for def in s:
-      for v in def[0..^3]:
-        if v.kind == nnkPragmaExpr: v[0]
-        else: v
+    for v in defs[0..^3]:
+      newIdentDefs(v, defs[^2], defs[^1])
 
 
 func hasDefault(node: NimNode): bool {.compileTime.} =
@@ -217,7 +216,7 @@ func insertBody(
     0,
     newVarStmt(ident"self", newCall data.constructor.params[0])
   )
-  for v in args.decomposeDefsIntoVars():
+  for v in args.mapIt(it[0]):
     data.constructor.body.insert 1, quote do: self.`v` = `v`
   data.constructor.body.add quote do: result = self
 
@@ -293,7 +292,7 @@ proc genNewBody(
     vars: seq[NimNode]
 ): NimNode {.compileTime.} =
   result = newStmtList(newVarStmt(ident"self", newCall typeName))
-  for v in vars:
+  for v in vars.mapIt(it[0]):
     result.insert 1, quote do:
       self.`v` = `v`
   result.add quote do: result = self
@@ -311,7 +310,7 @@ proc defNew(data: var ClassData) =
     )
     body = genNewBody(
       data.nameWithGenerics,
-      args.decomposeDefsIntoVars()
+      args
     )
   data.constructor = newProc(name, params, body)
   if data.isPub:
@@ -386,10 +385,10 @@ proc getClassData(
           error "default values cannot be used with {.noNewDef.}", n
         if self.data.generics.anyIt(it.eqIdent n[^2]):
           error "A member variable with generic type is not supported for now"
-        n.inferValType()
         if n.hasPragma and "ignored" in n[0][1]:
           error "{.ignored.} pragma cannot be used in non-implemented classes"
-        self.data.argList.add n
+        n.inferValType()
+        self.data.argList &= n.decomposeIdentDefs()
     of nnkConstSection:
       for n in node:
         if not n.hasDefault:
@@ -397,7 +396,7 @@ proc getClassData(
         if self.data.generics.anyIt(it.eqIdent n):
           error "A constant with generic type cannot be used"
         n.inferValType()
-        self.data.constList.add n
+        self.data.constList &= n.decomposeIdentDefs()
     of nnkProcDef:
       if node.isConstructor:
         if self.data.constructor.kind == nnkEmpty:
@@ -503,13 +502,13 @@ proc getClassData(
         if n.hasPragma and "ignored" in n[0][1]:
           error "{.ignored.} pragma cannot be used in non-implemented classes"
         n.inferValType()
-        self.data.argList.add n
+        self.data.argList &= n.decomposeIdentDefs()
     of nnkConstSection:
       for n in node:
         if not n.hasDefault:
           error "A constant must have a value", node
         n.inferValType()
-        self.data.constList.add n
+        self.data.constList &= n.decomposeIdentDefs()
     of nnkProcDef:
       if node.isConstructor:
         if self.data.constructor.kind == nnkEmpty:
@@ -600,7 +599,7 @@ proc getClassData(
         if not n.hasDefault:
           error "A constant must have a value", node
         n.inferValType()
-        self.data.constList.add n
+        self.data.constList &= n.decomposeIdentDefs()
     of nnkProcDef, nnkMethodDef, nnkFuncDef, nnkIteratorDef, nnkConverterDef, nnkTemplateDef:
       self.data.body.add node.insertSelf(self.data.name)
     else:
@@ -663,16 +662,16 @@ proc getClassData(
       for n in node:
         if "noNewDef" in self.data.pragmas and n.hasDefault:
           error "default values cannot be used with {.noNewDef.}", n
-        n.inferValType()
         if n.hasPragma and "ignored" in n[0][1]:
           error "{.ignored.} pragma cannot be used in non-implemented classes"
-        self.data.argList.add n
+        n.inferValType()
+        self.data.argList &= n.decomposeIdentDefs()
     of nnkConstSection:
       for n in node:
         if not n.hasDefault:
           error "A constant must have a value", node
         n.inferValType()
-        self.data.constList.add n
+        self.data.constList &= n.decomposeIdentDefs()
     of nnkProcDef:
       if self.data.base.eqIdent"tuple" and node.isConstructor:
         if self.data.constructor.kind == nnkEmpty:
@@ -747,15 +746,15 @@ proc getClassData(
           error "default values cannot be used with {.noNewDef.}", n
         n.inferValType()
         if n.hasPragma and "ignored" in n[0][1]:
-          self.data.ignoredArgList.add n
+          self.data.ignoredArgList &= n.decomposeIdentDefs
         else:
-          self.data.argList.add n
+          self.data.argList &= n.decomposeIdentDefs
     of nnkConstSection:
       for n in node:
         if not n.hasDefault:
           error "A constant must have a value", node
         n.inferValType()
-        self.data.constList.add n
+        self.data.constList &= n.decomposeIdentDefs()
     of nnkProcDef:
       if node.isConstructor:
         if self.data.constructor.kind == nnkEmpty:
@@ -823,7 +822,8 @@ proc defMemberRoutines(
     newStmtList(
       nnkReturnStmt.newNimNode.add(
         nnkTupleConstr.newNimNode.add(
-          self.data.argList.map(removeAsteriskFromIdent).decomposeDefsIntoVars().map(newVarsColonExpr)
+          self.data.argList.map(removeAsteriskFromIdent).mapIt(it[
+              0].newVarsColonExpr)
       ).add(
         self.data.body.filterIt(
           it.kind == nnkProcDef and "ignored" notin it[4]

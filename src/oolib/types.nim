@@ -23,7 +23,7 @@ type
     pragmas: seq[string]
     generics: seq[NimNode]
     body, constructor: NimNode
-    argList, ignoredArgList, constList: seq[NimNode]
+    argList, initialArgList, ignoredArgList, constList: seq[NimNode]
 
   ProtocolKind* {.pure.} = enum
     Normal
