@@ -4,25 +4,20 @@ import
   types,
   util
 
-
 func isDistinct(node: NimNode): bool {.compileTime.} =
   node.kind == nnkCall and node[1].kind == nnkDistinctTy
 
-
 func isInheritance(node: NimNode): bool {.compileTime.} =
   node.kind == nnkInfix and node[0].eqIdent"of"
-
 
 func hasGenerics(node: NimNode): bool {.compileTime.} =
   node.kind == nnkBracketExpr and
   node[0].kind == nnkIdent and
   node[1].kind == nnkIdent
 
-
 func toSeq(node: NimNode): seq[string] {.compileTime.} =
   node.expectKind nnkPragma
   result = collect(for s in node: s.strVal)
-
 
 template inheritanceClassInfo(
     result: ClassInfo;
@@ -42,7 +37,6 @@ template inheritanceClassInfo(
   result.pragmas = node[2][1].toSeq()
   result.name = node[1]
   result.base = node[2][0]
-
 
 proc getClassInfo*(head: NimNode): ClassInfo {.compileTime.} =
   case head.len

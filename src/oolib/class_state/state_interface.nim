@@ -2,7 +2,6 @@ import
   std/sugar,
   .. / types
 
-
 type
   IState* = tuple
     data: ClassData

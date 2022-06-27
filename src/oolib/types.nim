@@ -1,7 +1,6 @@
 import
   std/macros
 
-
 type
   ClassKind* {.pure.} = enum
     Normal
@@ -36,7 +35,6 @@ type
   ProtocolMembers* = tuple
     argList, procs, implementedProcs: seq[NimNode]
 
-
 proc nameWithGenerics*(data: ClassData): NimNode {.compileTime.} =
   ## Return `name[T, U]` if a class has generics.
   result = data.name
@@ -44,7 +42,6 @@ proc nameWithGenerics*(data: ClassData): NimNode {.compileTime.} =
     result = nnkBracketExpr.newTree(
       result & data.generics
     )
-
 
 func allArgList*(data: ClassData): seq[NimNode] {.compileTime.} =
   data.argList & data.ignoredArgList & data.initialArgList

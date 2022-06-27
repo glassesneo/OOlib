@@ -1,11 +1,9 @@
 import
   state_interface
 
-
 type
   Context* = ref object
     state: IState
-
 
 proc getClassData(
     self: Context,
@@ -13,17 +11,14 @@ proc getClassData(
 ) {.compileTime.} =
   self.state.getClassData(body)
 
-
 proc newContext*(state: IState, body: NimNode): Context {.compileTime.} =
   result = Context(state: state)
   result.getClassData(body)
-
 
 proc defClass*(
     self: Context
 ): NimNode {.compileTime.} =
   self.state.defClass()
-
 
 proc defBody*(
     self: Context,

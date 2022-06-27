@@ -4,7 +4,6 @@ import
   tmpl,
   types
 
-
 proc newProtocolInfo(
     isPub = false,
     kind = ProtocolKind.Normal,
@@ -15,7 +14,6 @@ proc newProtocolInfo(
     kind: kind,
     name: name
   )
-
 
 proc parseProtocolHead*(head: NimNode): ProtocolInfo =
   case head.len:
@@ -30,13 +28,6 @@ proc parseProtocolHead*(head: NimNode): ProtocolInfo =
     )
   else:
     error "Unsupported syntax", head
-
-
-func insertSelf(theProc, typeName: NimNode): NimNode {.compileTime.} =
-  ## Inserts `self: typeName` in the 1st of theProc.params.
-  result = theProc
-  result.params.insert 1, newIdentDefs(ident"self", typeName)
-
 
 proc parseProtocolBody*(body: NimNode, info: ProtocolInfo): ProtocolMembers =
   for node in body:
@@ -54,7 +45,6 @@ proc parseProtocolBody*(body: NimNode, info: ProtocolInfo): ProtocolMembers =
     else:
       error "Unsupported syntax", node
 
-
 func toTupleMemberProc(node: NimNode): NimNode =
   if node.kind == nnkFuncDef:
     if node[4].kind == nnkEmpty:
@@ -69,7 +59,6 @@ func toTupleMemberProc(node: NimNode): NimNode =
     node[4]
   )
 
-
 proc defProtocol*(info: ProtocolInfo, members: ProtocolMembers): NimNode =
   result = newStmtList getAst defProtocol(info.name)
   for v in members.argList:
@@ -79,8 +68,5 @@ proc defProtocol*(info: ProtocolInfo, members: ProtocolMembers): NimNode =
   for p in members.implementedProcs:
     result.add p
   if info.isPub:
-    result[0][0][0] = nnkPostfix.newTree(ident"*", result[0][0][0])
-  result[0][0][0] = nnkPragmaExpr.newTree(
-    result[0][0][0],
-    nnkPragma.newTree(ident "pProtocol")
-  )
+    markWithPostfix result[0][0][0]
+  newPragmaExpr result[0][0][0], "pProtocol"

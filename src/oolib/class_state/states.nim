@@ -8,7 +8,6 @@ import
   .. / tmpl,
   state_interface
 
-
 type
   NormalState* = ref object
     data: ClassData
@@ -24,7 +23,6 @@ type
 
   ImplementationState* = ref object
     data: ClassData
-
 
 template generateNewState(t) =
   proc new*(_: typedesc[t], info: ClassInfo): t {.compileTime.} =
@@ -44,7 +42,6 @@ template generateNewState(t) =
       )
     )
 
-
 template generateToInterface(t) =
   proc toInterface*(self: t): IState {.compileTime.} =
     result = (
@@ -63,15 +60,12 @@ template generateToInterface(t) =
       (theClass: NimNode) => self.defBody(theClass)
     )
 
-
 func hasAsterisk(node: NimNode): bool {.compileTime.} =
   node.kind == nnkPostfix and node[0].eqIdent"*"
-
 
 func removeDefault(v: NimNode): NimNode {.compileTime.} =
   v[^1] = newEmptyNode()
   return v
-
 
 proc removeAsteriskFromIdent(def: NimNode): NimNode {.compileTime.} =
   result = nnkIdentDefs.newNimNode()
@@ -80,11 +74,9 @@ proc removeAsteriskFromIdent(def: NimNode): NimNode {.compileTime.} =
       else: v
   result.add(def[^2], def[^1])
 
-
 proc removeAsteriskFromProc(theProc: NimNode): NimNode {.compileTime.} =
   result = theProc
   result[0] = if theProc[0].hasAsterisk: theProc[0][1] else: theProc[0]
-
 
 proc removePragmasFromIdent(def: NimNode): NimNode {.compileTime.} =
   result = nnkIdentDefs.newNimNode()
@@ -93,16 +85,13 @@ proc removePragmasFromIdent(def: NimNode): NimNode {.compileTime.} =
       else: v
   result.add(def[^2], def[^1])
 
-
 proc simplifyIdentDefs(def: NimNode): NimNode {.compileTime.} =
   result = def.removePragmasFromIdent().removeAsteriskFromIdent()
-
 
 func toRecList(s: seq[NimNode]): NimNode {.compileTime.} =
   result = nnkRecList.newNimNode()
   for def in s:
     result.add def
-
 
 proc genConstant(data: ClassData, node: NimNode): NimNode {.compileTime.} =
   ## Generates both a template for use with typedesc and a method for dynamic dispatch.
@@ -146,36 +135,21 @@ proc genConstant(data: ClassData, node: NimNode): NimNode {.compileTime.} =
     ),
   )
 
-
-template markWithPostfix(node) =
-  node = nnkPostfix.newTree(ident"*", node)
-
-
-template newPragmaExpr(node; pragma: string) =
-  node = nnkPragmaExpr.newTree(
-    node,
-    nnkPragma.newTree(ident pragma)
-  )
-
-
 func decomposeIdentDefs(defs: NimNode): seq[NimNode] {.compileTime.} =
   result = collect:
     for v in defs[0..^3]:
       newIdentDefs(v, defs[^2], defs[^1])
-
 
 func hasDefault(node: NimNode): bool {.compileTime.} =
   ## `node` has to be `nnkIdentDefs` or `nnkConstDef`.
   node.expectKind {nnkIdentDefs, nnkConstDef}
   not (node.last.kind == nnkEmpty)
 
-
 func inferValType(node: NimNode) {.compileTime.} =
   ## Infers type from default if a type annotation is empty.
   ## `node` has to be `nnkIdentDefs` or `nnkConstDef`.
   node.expectKind {nnkIdentDefs, nnkConstDef}
   node[^2] = node[^2] or newCall(ident"typeof", node[^1])
-
 
 func inferArgType(
     v: NimNode;
@@ -188,7 +162,6 @@ func inferArgType(
         result[^2] = def[^2]
         return
 
-
 func inferArgTypes(data: ClassData): seq[NimNode] {.compileTime.} =
   for def in data.constructor.params[1..^1]:
     if newEmptyNode() notin def[^2..^1]:
@@ -197,14 +170,12 @@ func inferArgTypes(data: ClassData): seq[NimNode] {.compileTime.} =
     for v in def[0..^3]:
       result.add v.inferArgType(data.argList&data.ignoredArgList)
 
-
 func inferConstructorArgTypes(data: ClassData) {.compileTime.} =
   ## Infers types of constructor arguments.
   data.constructor.params = nnkFormalParams.newTree(
     newEmptyNode() &
     data.inferArgTypes()
   )
-
 
 func insertBody(
     data: ClassData
@@ -214,7 +185,7 @@ func insertBody(
     return
   data.constructor.body.insert(
     0,
-    newVarStmt(ident"self", newCall data.constructor.params[0])
+    newVarStmt(ident"self", newCall data.nameWithGenerics)
   )
   for v in args.mapIt(it[0]):
     data.constructor.body.insert 1, quote do: self.`v` = `v`
@@ -225,12 +196,10 @@ func insertBody(
     data.constructor.body.insert 1, quote do: self.`v` = `initial`
   data.constructor.body.add quote do: result = self
 
-
 proc insertArgs(constructor: NimNode, vars: seq[NimNode]) {.compileTime.} =
   ## Inserts `vars` to constructor args.
   for v in vars:
     constructor.params.add v
-
 
 proc addSignatures(
     data: ClassData
@@ -250,16 +219,13 @@ proc addSignatures(
     )
   )
 
-
 func rmSelf(theProc: NimNode): NimNode {.compileTime.} =
   ## Removes `self: typeName` from the 1st of theProc.params.
   result = theProc.copy
   result.params.del(idx = 1)
 
-
 func newVarsColonExpr(v: NimNode): NimNode {.compileTime.} =
   newColonExpr(v, newDotExpr(ident"self", v))
-
 
 func newLambdaColonExpr(theProc: NimNode): NimNode {.compileTime.} =
   ## Generates `name: proc() = self.name()`.
@@ -271,13 +237,11 @@ func newLambdaColonExpr(theProc: NimNode): NimNode {.compileTime.} =
   )
   result = newColonExpr(name, lambdaProc)
 
-
 func isSuperFunc(node: NimNode): bool {.compileTime.} =
   ## Returns whether struct is `super.f()` or not.
   node.kind == nnkCall and
   node[0].kind == nnkDotExpr and
   node[0][0].eqIdent"super"
-
 
 proc replaceSuper(node: NimNode): NimNode =
   ## Replaces `super.f()` with `procCall Base(self).f()`.
@@ -290,7 +254,6 @@ proc replaceSuper(node: NimNode): NimNode =
     )
   for i, n in node:
     result[i] = n.replaceSuper()
-
 
 proc genNewBody(
     typeName: NimNode;
@@ -307,7 +270,6 @@ proc genNewBody(
     result.insert 1, quote do:
       self.`v` = `initial`
   result.add quote do: result = self
-
 
 proc defNew(data: var ClassData) =
   let args = (data.argList&data.ignoredArgList).map(simplifyIdentDefs)
@@ -328,20 +290,12 @@ proc defNew(data: var ClassData) =
   if data.isPub:
     markWithPostfix(data.constructor.name)
 
-
 proc defNewWithBase(
     data: ClassData
 ) {.compileTime.} =
   ## Adds signatures and insert body to `constructor`.
   data.addSignatures()
   data.insertBody()
-
-
-func insertSelf(theProc, typeName: NimNode): NimNode {.compileTime.} =
-  ## Inserts `self: typeName` in the 1st of theProc.params.
-  result = theProc
-  result.params.insert 1, newIdentDefs(ident"self", typeName)
-
 
 func addNoSideEffectPragma(theProc: NimNode) {.compileTime.} =
   ## Adds `noSideEffect` pragma to theProc.
@@ -353,7 +307,6 @@ func addNoSideEffectPragma(theProc: NimNode) {.compileTime.} =
   else:
     theProc[4].add ident"noSideEffect"
 
-
 func convertFuncToProcWithPragma(theFunc: NimNode): NimNode {.compileTime.} =
   ## Converts `func f()` to `proc f() {.noSideEffect.}`.
   theFunc.expectKind nnkFuncDef
@@ -361,29 +314,24 @@ func convertFuncToProcWithPragma(theFunc: NimNode): NimNode {.compileTime.} =
   theFunc.copyChildrenTo result
   result.addNoSideEffectPragma()
 
-
 func isConstructor(node: NimNode): bool {.compileTime.} =
   ## `node` has to be `nnkProcDef`.
   node.expectKind {nnkProcDef, nnkMethodDef}
   node[0].kind == nnkAccQuoted and node.name.eqIdent"new"
-
 
 func hasPragma(node: NimNode): bool {.compileTime.} =
   ## `node` has to be `nnkIdentDefs or nnkConstDef`.
   node.expectKind {nnkIdentDefs, nnkConstDef}
   node[0].kind == nnkPragmaExpr
 
-
 func newSuperStmt(baseName: NimNode): NimNode {.compileTime.} =
   ## Generates `var super = Base(self)`.
   newVarStmt ident"super", newCall(baseName, ident "self")
-
 
 func insertSuperStmt(theProc, baseName: NimNode): NimNode {.compileTime.} =
   ## Inserts `var super = Base(self)` in the 1st line of `theProc.body`.
   result = theProc
   result.body.insert 0, newSuperStmt(baseName)
-
 
 proc getClassData(
   self: NormalState;
@@ -421,10 +369,6 @@ proc getClassData(
       if node.isConstructor:
         if self.data.constructor.kind == nnkEmpty:
           self.data.constructor = node.copy()
-          self.data.constructor[4] = nnkPragma.newTree(
-            newColonExpr(ident"deprecated", newLit"Use Type.new instead")
-          )
-          self.data.constructor = node.copy()
         else:
           error "Constructor already exists", node
       else:
@@ -433,7 +377,6 @@ proc getClassData(
       self.data.body.add node.insertSelf(self.data.nameWithGenerics)
     else:
       discard
-
 
 proc defClass(
     self: NormalState;
@@ -450,7 +393,6 @@ proc defClass(
   if "open" in self.data.pragmas:
     result[0][2][0][1] = nnkOfInherit.newTree ident"RootObj"
   newPragmaExpr(result[0][0], "pClass")
-
 
 proc defConstructor(
     self: NormalState;
@@ -483,13 +425,11 @@ proc defConstructor(
     self.data.constructor
   )
 
-
 proc defMemberVars(
     self: NormalState;
     theClass: NimNode;
 ) {.compileTime.} =
   theClass[0][0][2][0][2] = self.data.allArgList.map(removeDefault).toRecList()
-
 
 proc defMemberRoutines(
     self: NormalState;
@@ -499,7 +439,6 @@ proc defMemberRoutines(
   for c in self.data.constList:
     theClass.insert 1, self.data.genConstant(c)
 
-
 proc defBody(
     self: NormalState;
     theClass: NimNode;
@@ -507,7 +446,6 @@ proc defBody(
   self.defConstructor(theClass)
   self.defMemberVars(theClass)
   self.defMemberRoutines(theClass)
-
 
 proc getClassData(
   self: InheritanceState;
@@ -540,10 +478,6 @@ proc getClassData(
     of nnkProcDef:
       if node.isConstructor:
         if self.data.constructor.kind == nnkEmpty:
-          self.data.constructor = node.copy()
-          self.data.constructor[4] = nnkPragma.newTree(
-            newColonExpr(ident"deprecated", newLit"Use Type.new instead")
-          )
           self.data.constructor = node
             .replaceSuper()
             .insertSuperStmt(self.data.base)
@@ -567,7 +501,6 @@ proc getClassData(
     else:
       discard
 
-
 proc defClass(
     self: InheritanceState;
 ): NimNode {.compileTime.} =
@@ -575,7 +508,6 @@ proc defClass(
   if self.data.isPub:
     markWithPostfix(result[0][0])
   newPragmaExpr(result[0][0], "pClass")
-
 
 proc defConstructor(
     self: InheritanceState;
@@ -587,13 +519,11 @@ proc defConstructor(
     self.data.defNewWithBase()
     theClass.insert 1, self.data.constructor
 
-
 proc defMemberVars(
     self: InheritanceState;
     theClass: NimNode;
 ) {.compileTime.} =
   theClass[0][0][2][0][2] = self.data.argList.map(removeDefault).toRecList()
-
 
 proc defMemberRoutines(
     self: InheritanceState;
@@ -603,7 +533,6 @@ proc defMemberRoutines(
   for c in self.data.constList:
     theClass.insert 1, self.data.genConstant(c)
 
-
 proc defBody(
     self: InheritanceState;
     theClass: NimNode;
@@ -611,7 +540,6 @@ proc defBody(
   self.defConstructor(theClass)
   self.defMemberVars(theClass)
   self.defMemberRoutines(theClass)
-
 
 proc getClassData(
   self: DistinctState;
@@ -637,7 +565,6 @@ proc getClassData(
     else:
       discard
 
-
 proc defClass(
     self: DistinctState;
 ): NimNode {.compileTime.} =
@@ -649,20 +576,17 @@ proc defClass(
     result[0][0][1][0] = ident "inheritable"
     result[0][0][1].add ident "pClass"
 
-
 proc defConstructor(
     self: DistinctState;
     theClass: NimNode;
 ) {.compileTime.} =
   discard
 
-
 proc defMemberVars(
     self: DistinctState;
     theClass: NimNode;
 ) {.compileTime.} =
   discard
-
 
 proc defMemberRoutines(
     self: DistinctState;
@@ -672,7 +596,6 @@ proc defMemberRoutines(
   for c in self.data.constList:
     theClass.insert 1, self.data.genConstant(c)
 
-
 proc defBody(
     self: DistinctState;
     theClass: NimNode;
@@ -680,7 +603,6 @@ proc defBody(
   self.defConstructor(theClass)
   self.defMemberVars(theClass)
   self.defMemberRoutines(theClass)
-
 
 proc getClassData(
   self: AliasState;
@@ -716,10 +638,6 @@ proc getClassData(
       if self.data.base.eqIdent"tuple" and node.isConstructor:
         if self.data.constructor.kind == nnkEmpty:
           self.data.constructor = node.copy()
-          self.data.constructor[4] = nnkPragma.newTree(
-            newColonExpr(ident"deprecated", newLit"Use Type.new instead")
-          )
-          self.data.constructor = node.copy()
         else:
           error "Constructor already exists", node
       else:
@@ -729,7 +647,6 @@ proc getClassData(
     else:
       discard
 
-
 proc defClass(
     self: AliasState;
 ): NimNode {.compileTime.} =
@@ -738,13 +655,11 @@ proc defClass(
     markWithPostfix(result[0][0])
   newPragmaExpr(result[0][0], "pClass")
 
-
 proc defConstructor(
     self: AliasState;
     theClass: NimNode;
 ) {.compileTime.} =
   discard
-
 
 proc defMemberVars(
     self: AliasState;
@@ -755,7 +670,6 @@ proc defMemberVars(
       self.data.argList.map(removeDefault)
     )
 
-
 proc defMemberRoutines(
     self: AliasState;
     theClass: NimNode;
@@ -764,7 +678,6 @@ proc defMemberRoutines(
   for c in self.data.constList:
     theClass.insert 1, self.data.genConstant(c)
 
-
 proc defBody(
     self: AliasState;
     theClass: NimNode;
@@ -772,7 +685,6 @@ proc defBody(
   self.defConstructor(theClass)
   self.defMemberVars(theClass)
   self.defMemberRoutines(theClass)
-
 
 proc getClassData(
   self: ImplementationState;
@@ -809,10 +721,6 @@ proc getClassData(
       if node.isConstructor:
         if self.data.constructor.kind == nnkEmpty:
           self.data.constructor = node.copy()
-          self.data.constructor[4] = nnkPragma.newTree(
-            newColonExpr(ident"deprecated", newLit"Use Type.new instead")
-          )
-          self.data.constructor = node.copy()
         else:
           error "Constructor already exists", node
       else:
@@ -825,7 +733,6 @@ proc getClassData(
     else:
       discard
 
-
 proc defClass(
     self: ImplementationState;
 ): NimNode {.compileTime.} =
@@ -833,7 +740,6 @@ proc defClass(
   if self.data.isPub:
     markWithPostfix(result[0][0])
   newPragmaExpr(result[0][0], "pClass")
-
 
 proc defConstructor(
     self: ImplementationState;
@@ -851,14 +757,12 @@ proc defConstructor(
     self.data.constructor
   )
 
-
 proc defMemberVars(
     self: ImplementationState;
     theClass: NimNode;
 ) {.compileTime.} =
   theClass[0][0][2][0][2] =
     (self.data.argList&self.data.ignoredArgList).map(removeDefault).toRecList()
-
 
 proc defMemberRoutines(
     self: ImplementationState;
@@ -899,7 +803,6 @@ proc defMemberRoutines(
     else:
       {.error: "Something went wrong".}
 
-
 proc defBody(
     self: ImplementationState;
     theClass: NimNode;
@@ -908,20 +811,17 @@ proc defBody(
   self.defMemberVars(theClass)
   self.defMemberRoutines(theClass)
 
-
 generateNewState NormalState
 generateNewState InheritanceState
 generateNewState DistinctState
 generateNewState AliasState
 generateNewState ImplementationState
 
-
 generateToInterface NormalState
 generateToInterface InheritanceState
 generateToInterface DistinctState
 generateToInterface AliasState
 generateToInterface ImplementationState
-
 
 proc newState*(info: ClassInfo): IState {.compileTime.} =
   result = case info.kind
