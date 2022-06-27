@@ -38,8 +38,8 @@ template generateNewState(t) =
         body: newStmtList(),
         constructor: newEmptyNode(),
         argList: @[],
-        initialArgList: @[],
         ignoredArgList: @[],
+        initialArgList: @[],
         constList: @[]
       )
     )
@@ -195,7 +195,7 @@ func inferArgTypes(data: ClassData): seq[NimNode] {.compileTime.} =
       result.add def
       continue
     for v in def[0..^3]:
-      result.add v.inferArgType(data.allArgList)
+      result.add v.inferArgType(data.argList&data.ignoredArgList)
 
 
 func inferConstructorArgTypes(data: ClassData) {.compileTime.} =
@@ -209,7 +209,7 @@ func inferConstructorArgTypes(data: ClassData) {.compileTime.} =
 func insertBody(
     data: ClassData
 ) {.compileTime.} =
-  let args = data.allArgList.filter(hasDefault).map(simplifyIdentDefs)
+  let args = (data.argList&data.ignoredArgList).filter(hasDefault).map(simplifyIdentDefs)
   if data.constructor.body[0].kind == nnkDiscardStmt:
     return
   data.constructor.body.insert(
@@ -218,6 +218,11 @@ func insertBody(
   )
   for v in args.mapIt(it[0]):
     data.constructor.body.insert 1, quote do: self.`v` = `v`
+  for def in data.initialArgList.map(simplifyIdentDefs):
+    let
+      v = def[0]
+      initial = def[^1]
+    data.constructor.body.insert 1, quote do: self.`v` = `initial`
   data.constructor.body.add quote do: result = self
 
 
@@ -231,7 +236,7 @@ proc addSignatures(
     data: ClassData
 ) {.compileTime.} =
   ## Adds signatures to `data.constructor`.
-  let args = data.allArgList.filter(hasDefault).map(simplifyIdentDefs)
+  let args = (data.argList&data.ignoredArgList).filter(hasDefault).map(simplifyIdentDefs)
   data.constructor.name = ident"new"
   if data.isPub:
     markWithPostfix(data.constructor.name)
@@ -289,17 +294,23 @@ proc replaceSuper(node: NimNode): NimNode =
 
 proc genNewBody(
     typeName: NimNode;
-    vars: seq[NimNode]
+    vars, initialVars: seq[NimNode]
 ): NimNode {.compileTime.} =
   result = newStmtList(newVarStmt(ident"self", newCall typeName))
   for v in vars.mapIt(it[0]):
     result.insert 1, quote do:
       self.`v` = `v`
+  for def in initialVars:
+    let
+      v = def[0]
+      initial = def[^1]
+    result.insert 1, quote do:
+      self.`v` = `initial`
   result.add quote do: result = self
 
 
 proc defNew(data: var ClassData) =
-  let args = data.allArgList.map(simplifyIdentDefs)
+  let args = (data.argList&data.ignoredArgList).map(simplifyIdentDefs)
   let
     name = ident"new"
     params = data.nameWithGenerics&(
@@ -310,7 +321,8 @@ proc defNew(data: var ClassData) =
     )
     body = genNewBody(
       data.nameWithGenerics,
-      args
+      args,
+      data.initialArgList.map(simplifyIdentDefs)
     )
   data.constructor = newProc(name, params, body)
   if data.isPub:
@@ -388,7 +400,11 @@ proc getClassData(
         if n.hasPragma and "ignored" in n[0][1]:
           error "{.ignored.} pragma cannot be used in non-implemented classes"
         n.inferValType()
-        self.data.argList &= n.decomposeIdentDefs()
+        for d in n.decomposeIdentDefs():
+          if d.hasPragma and "initial" in d[0][1]:
+            self.data.initialArgList.add d
+          else:
+            self.data.argList.add d
     of nnkConstSection:
       for n in node:
         if not n.hasDefault:
@@ -396,7 +412,11 @@ proc getClassData(
         if self.data.generics.anyIt(it.eqIdent n):
           error "A constant with generic type cannot be used"
         n.inferValType()
-        self.data.constList &= n.decomposeIdentDefs()
+        for d in n.decomposeIdentDefs():
+          if d.hasPragma and "initial" in d[0][1]:
+            error "{.initial.} pragma cannot be used with constant", d
+          else:
+            self.data.constList.add d
     of nnkProcDef:
       if node.isConstructor:
         if self.data.constructor.kind == nnkEmpty:
@@ -468,7 +488,7 @@ proc defMemberVars(
     self: NormalState;
     theClass: NimNode;
 ) {.compileTime.} =
-  theClass[0][0][2][0][2] = self.data.argList.map(removeDefault).toRecList()
+  theClass[0][0][2][0][2] = self.data.allArgList.map(removeDefault).toRecList()
 
 
 proc defMemberRoutines(
@@ -502,13 +522,21 @@ proc getClassData(
         if n.hasPragma and "ignored" in n[0][1]:
           error "{.ignored.} pragma cannot be used in non-implemented classes"
         n.inferValType()
-        self.data.argList &= n.decomposeIdentDefs()
+        for d in n.decomposeIdentDefs():
+          if d.hasPragma and "initial" in d[0][1]:
+            self.data.initialArgList.add d
+          else:
+            self.data.argList.add d
     of nnkConstSection:
       for n in node:
         if not n.hasDefault:
           error "A constant must have a value", node
         n.inferValType()
-        self.data.constList &= n.decomposeIdentDefs()
+        for d in n.decomposeIdentDefs():
+          if d.hasPragma and "initial" in d[0][1]:
+            error "{.initial.} pragma cannot be used with constant", d
+          else:
+            self.data.constList.add d
     of nnkProcDef:
       if node.isConstructor:
         if self.data.constructor.kind == nnkEmpty:
@@ -599,7 +627,11 @@ proc getClassData(
         if not n.hasDefault:
           error "A constant must have a value", node
         n.inferValType()
-        self.data.constList &= n.decomposeIdentDefs()
+        for d in n.decomposeIdentDefs():
+          if d.hasPragma and "initial" in d[0][1]:
+            error "{.initial.} pragma cannot be used with constant", d
+          else:
+            self.data.constList.add d
     of nnkProcDef, nnkMethodDef, nnkFuncDef, nnkIteratorDef, nnkConverterDef, nnkTemplateDef:
       self.data.body.add node.insertSelf(self.data.name)
     else:
@@ -665,13 +697,21 @@ proc getClassData(
         if n.hasPragma and "ignored" in n[0][1]:
           error "{.ignored.} pragma cannot be used in non-implemented classes"
         n.inferValType()
-        self.data.argList &= n.decomposeIdentDefs()
+        for d in n.decomposeIdentDefs():
+          if d.hasPragma and "initial" in d[0][1]:
+            self.data.initialArgList.add d
+          else:
+            self.data.argList.add d
     of nnkConstSection:
       for n in node:
         if not n.hasDefault:
           error "A constant must have a value", node
         n.inferValType()
-        self.data.constList &= n.decomposeIdentDefs()
+        for d in n.decomposeIdentDefs():
+          if d.hasPragma and "initial" in d[0][1]:
+            error "{.initial.} pragma cannot be used with constant", d
+          else:
+            self.data.constList.add d
     of nnkProcDef:
       if self.data.base.eqIdent"tuple" and node.isConstructor:
         if self.data.constructor.kind == nnkEmpty:
@@ -745,16 +785,26 @@ proc getClassData(
         if "noNewDef" in self.data.pragmas and n.hasDefault:
           error "default values cannot be used with {.noNewDef.}", n
         n.inferValType()
-        if n.hasPragma and "ignored" in n[0][1]:
-          self.data.ignoredArgList &= n.decomposeIdentDefs
-        else:
-          self.data.argList &= n.decomposeIdentDefs
+        for d in n.decomposeIdentDefs():
+          if d.hasPragma:
+            if "initial" in d[0][1]:
+              self.data.initialArgList.add d
+            elif "ignored" in d[0][1]:
+              self.data.ignoredArgList.add d
+            else:
+              self.data.argList.add d
+          else:
+            self.data.argList.add d
     of nnkConstSection:
       for n in node:
         if not n.hasDefault:
           error "A constant must have a value", node
         n.inferValType()
-        self.data.constList &= n.decomposeIdentDefs()
+        for d in n.decomposeIdentDefs():
+          if d.hasPragma and "initial" in d[0][1]:
+            error "{.initial.} pragma cannot be used with constant", d
+          else:
+            self.data.constList.add d
     of nnkProcDef:
       if node.isConstructor:
         if self.data.constructor.kind == nnkEmpty:
@@ -806,7 +856,8 @@ proc defMemberVars(
     self: ImplementationState;
     theClass: NimNode;
 ) {.compileTime.} =
-  theClass[0][0][2][0][2] = self.data.allArgList.map(removeDefault).toRecList()
+  theClass[0][0][2][0][2] =
+    (self.data.argList&self.data.ignoredArgList).map(removeDefault).toRecList()
 
 
 proc defMemberRoutines(
