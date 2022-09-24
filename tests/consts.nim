@@ -16,7 +16,7 @@ class pub A {.open.}:
 class pub B of A:
   const speed* = 15.0f
 
-  proc `new`(pos = 0f): B =
+  proc `new`(pos = 0f) =
     self.pos = pos
 
 var a = A.new(pos = 5f)

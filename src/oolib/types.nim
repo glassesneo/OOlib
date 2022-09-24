@@ -1,7 +1,5 @@
 import
-  std/macros,
-  std/sugar
-
+  std/macros
 
 type
   ClassKind* {.pure.} = enum
@@ -18,10 +16,13 @@ type
     kind: ClassKind
     name, base: NimNode
 
-  ClassMembers* = tuple
-    body, ctorBase, ctorBase2: NimNode
-    argsList, ignoredArgsList, constsList: seq[NimNode]
-
+  ClassData* = tuple
+    isPub: bool
+    name, base: NimNode
+    pragmas: seq[string]
+    generics: seq[NimNode]
+    body, constructor: NimNode
+    argList, ignoredArgList, initialArgList, constList: seq[NimNode]
 
   ProtocolKind* {.pure.} = enum
     Normal
@@ -32,24 +33,15 @@ type
     name: NimNode
 
   ProtocolMembers* = tuple
-    argsList, procs, funcs: seq[NimNode]
+    argList, procs, implementedProcs: seq[NimNode]
 
-
-proc nameWithGenerics*(info: ClassInfo): NimNode {.compileTime.} =
+proc nameWithGenerics*(data: ClassData): NimNode {.compileTime.} =
   ## Return `name[T, U]` if a class has generics.
-  result = info.name
-  if info.generics != @[]:
+  result = data.name
+  if data.generics != @[]:
     result = nnkBracketExpr.newTree(
-      result & info.generics
+      result & data.generics
     )
 
-
-func allArgsList*(members: ClassMembers): seq[NimNode] {.compileTime.} =
-  members.argsList & members.ignoredArgsList
-
-
-func withoutDefault*(argsList: seq[NimNode]): seq[NimNode] =
-  result = collect:
-    for v in argsList:
-      v[^1] = newEmptyNode()
-      v
+func allArgList*(data: ClassData): seq[NimNode] {.compileTime.} =
+  data.argList & data.ignoredArgList & data.initialArgList

@@ -12,9 +12,9 @@ class Sword:
 
 class Gun:
   var
-    capacity: uint
+    capacity*: uint
     bullets: uint
-  proc `new`(capacity: uint) =
+  proc `new`(capacity) =
     self.capacity = capacity
     self.bullets = capacity
 

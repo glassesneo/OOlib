@@ -9,9 +9,15 @@ protocol Animal:
   func breathe()
   proc roar()
 
+  proc eat() = echo "eat!"
+
 class pub Cat impl Animal:
   var scientificName*: string
   var name* {.ignored.}: string
+
+  proc `new`(scientificName; name) =
+    self.scientificName = scientificName
+    self.name = name
 
   func breathe*() =
     # echo "breathed!"
@@ -53,3 +59,4 @@ let animals = @[
 ]
 
 echoName(animals)
+animals[0].eat()
