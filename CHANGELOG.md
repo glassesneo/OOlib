@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
+
+## [v0.5.0] -2022-9-24
 ## Added
 - NamedTuple implementation [#78](https://github.com/Glasses-Neo/OOlib/issues/78)
   - classes aliasing tuples are now converted to named tuples and member variables can be defined
@@ -13,6 +15,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Implemented procedures in `protocol` [#94](https://github.com/Glasses-Neo/OOlib/issues/94)
   - procedures can now be implemented in protocols
 - `super` for constructor of inheritance classes [#102](https://github.com/Glasses-Neo/OOlib/issues/102)
+- `{.initial.}` to set initial values [#118](https://github.com/Glasses-Neo/OOlib/issues/118)
 
 ## Removed
 - Old constructors are now removed [#96](https://github.com/Glasses-Neo/OOlib/issues/96)
@@ -83,7 +86,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## v0.1.0 - 2021-8-1
 - 🎉 First release!
 
-[Unreleased]: https://github.com/Glasses-Neo/OOlib/compare/0.4.3..HEAD
+[v0.5.0]: https://github.com/Glasses-Neo/OOlib/compare/0.4.3..0.5.0
 [v0.4.3]: https://github.com/Glasses-Neo/OOlib/compare/0.4.2..0.4.3
 [v0.4.2]: https://github.com/Glasses-Neo/OOlib/compare/0.4.1..0.4.2
 [v0.4.1]: https://github.com/Glasses-Neo/OOlib/compare/0.4.0..0.4.1
