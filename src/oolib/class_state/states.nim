@@ -823,8 +823,8 @@ generateToInterface DistinctState
 generateToInterface AliasState
 generateToInterface ImplementationState
 
-proc newState*(info: ClassInfo): IState {.compileTime.} =
-  result = case info.kind
+proc newState*(info: ClassInfo, classKind: ClassKind): IState {.compileTime.} =
+  result = case classKind
     of ClassKind.Normal: NormalState.new(info).toInterface()
     of ClassKind.Inheritance: InheritanceState.new(info).toInterface()
     of ClassKind.Distinct: DistinctState.new(info).toInterface()

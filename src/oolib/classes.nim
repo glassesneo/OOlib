@@ -25,7 +25,6 @@ template inheritanceClassInfo(
 ) =
   if not node.isInheritance: error "Unsupported syntax", node
   if node[1].hasGenerics: error "Generics can be only in Normal classes for now", node[1]
-  result.kind = Inheritance
   if node[2].kind != nnkPragmaExpr:
     # class A of B
     result.name = node[1]
@@ -38,83 +37,85 @@ template inheritanceClassInfo(
   result.name = node[1]
   result.base = node[2][0]
 
-proc getClassInfo*(head: NimNode): ClassInfo {.compileTime.} =
+proc getClassInfo*(head: NimNode): (ClassInfo, ClassKind) {.compileTime.} =
   case head.len
   of 0:
     # class A
-    result.kind = ClassKind.Normal
-    result.name = head
+    result[1] = ClassKind.Normal
+    result[0].name = head
   of 1:
     error "Unsupported syntax", head
   of 2:
-    result.isPub = head.isPub
+    result[0].isPub = head.isPub
     var node =
       if head.isPub: head[1]
       else: head
     case node.kind
     of nnkIdent:
       # class A
-      result.kind = ClassKind.Normal
-      result.name = node
+      result[1] = ClassKind.Normal
+      result[0].name = node
     of nnkCall:
       if node[0].hasGenerics: error "Generics can be only in Normal classes for now", node
-      result.name = node[0]
+      result[0].name = node[0]
       if node.isDistinct:
         # class A(distinct B)
-        result.kind = Distinct
-        result.base = node[1][0]
+        result[1] = ClassKind.Distinct
+        result[0].base = node[1][0]
         return
       # class A(B)
-      result.kind = Alias
-      result.base = node[1]
+      result[1] = ClassKind.Alias
+      result[0].base = node[1]
     of nnkInfix:
-      result.inheritanceClassInfo(node)
+      result[1] = ClassKind.Inheritance
+      result[0].inheritanceClassInfo(node)
     of nnkPragmaExpr:
-      result.pragmas = node[1].toSeq()
+      result[0].pragmas = node[1].toSeq()
       if node[0].isDistinct:
         # class A(distinct B) {.pragma.}
-        result.kind = Distinct
-        result.name = node[0][0]
-        result.base = node[0][1][0]
+        result[1] = ClassKind.Distinct
+        result[0].name = node[0][0]
+        result[0].base = node[0][1][0]
         return
       if node[0].kind == nnkCall:
         # class A(B) {.pragma.}
         if "open" in node[1]:
           warning "{.open.} is ignored in a definition of alias", node
-        result.kind = Alias
-        result.name = node[0][0]
-        result.base = node[0][1]
+        result[1] = ClassKind.Alias
+        result[0].name = node[0][0]
+        result[0].base = node[0][1]
         return
       if node[0].hasGenerics:
         # class A[T, U] {.pragma.}
-        result.name = node[0][0]
-        result.generics = node[1..^1]
+        result[0].name = node[0][0]
+        result[0].generics = node[1..^1]
         return
       # class A {.pragma.}
-      result.name = node[0]
+      result[0].name = node[0]
     of nnkCommand:
       if node[0].hasGenerics: error "Generics can be only in Normal classes for now", node
       if node[1][0].eqIdent"impl":
-        result.kind = Implementation
-        result.name = node[0]
+        result[1] = ClassKind.Implementation
+        result[0].name = node[0]
         if node[1][1].kind == nnkPragmaExpr:
           # class A impl IA {.pragma.}
-          result.pragmas = node[1][1][1].toSeq()
-          result.base = node[1][1][0]
+          result[0].pragmas = node[1][1][1].toSeq()
+          result[0].base = node[1][1][0]
           return
         # class A impl IA
-        result.base = node[1][1]
+        result[0].base = node[1][1]
         return
       error "Unsupported syntax", node
     of nnkBracketExpr:
       # class A[T, U]
-      result.kind = ClassKind.Normal
-      result.name = node[0]
-      result.generics = node[1..^1]
+      result[1] = ClassKind.Normal
+      result[0].name = node[0]
+      result[0].generics = node[1..^1]
     else:
       error "Unsupported syntax", node
   of 3:
-    result.isPub = false
-    result.inheritanceClassInfo(head)
+    result[0].isPub = false
+    result[1] = ClassKind.Inheritance
+    result[0].inheritanceClassInfo(head)
   else:
     error "Too many arguments", head
