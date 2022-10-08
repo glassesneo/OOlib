@@ -5,15 +5,14 @@ type
   Context* = ref object
     state: IState
 
-proc getClassData(
+proc newContext*(state: IState): Context {.compileTime.} =
+  result = Context(state: state)
+
+proc getClassData*(
     self: Context,
     body: NimNode,
 ) {.compileTime.} =
   self.state.getClassData(body)
-
-proc newContext*(state: IState, body: NimNode): Context {.compileTime.} =
-  result = Context(state: state)
-  result.getClassData(body)
 
 proc defClass*(
     self: Context

@@ -13,7 +13,8 @@ export
 macro class*(head: untyped, body: untyped = newEmptyNode()): untyped =
   let
     (info, classKind) = getClassInfo(head)
-    context = newContext(newState(info, classKind), body)
+    context = newContext(newState(info, classKind))
+  context.getClassData(body)
   result = newStmtList()
   result.add context.defClass()
   context.defBody(result)
