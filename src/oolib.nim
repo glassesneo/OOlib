@@ -1,7 +1,14 @@
 import
   std/macros,
-  oolib / [sub, classes, protocols],
-  oolib / class_state / [states, context]
+  oolib/[sub, classes, protocols, types],
+  oolib/class_builder/[
+    builder,
+    normal_builder,
+    inheritance_builder,
+    distinct_builder,
+    alias_builder,
+    implementation_builder
+  ]
 
 export
   optBase,
@@ -11,13 +18,33 @@ export
   initial
 
 macro class*(head: untyped, body: untyped = newEmptyNode()): untyped =
-  let
-    (info, classKind) = getClassInfo(head)
-    context = newContext(newState(info, classKind))
-  context.getClassData(body)
-  result = newStmtList()
-  result.add context.defClass()
-  context.defBody(result)
+  let classKind = distinguishClassKind(head)
+
+  case classKind
+  of ClassKind.Normal:
+    let builder = NormalBuilder.new().toInterface()
+    let director = Director.new(builder = builder)
+    result = director.build(head, body)
+
+  of ClassKind.Inheritance:
+    let builder = InheritanceBuilder.new().toInterface()
+    let director = Director.new(builder = builder)
+    result = director.build(head, body)
+
+  of ClassKind.Distinct:
+    let builder = DistinctBuilder.new().toInterface()
+    let director = Director.new(builder = builder)
+    result = director.build(head, body)
+
+  of ClassKind.Alias:
+    let builder = AliasBuilder.new().toInterface()
+    let director = Director.new(builder = builder)
+    result = director.build(head, body)
+
+  of ClassKind.Implementation:
+    let builder = ImplementationBuilder.new().toInterface()
+    let director = Director.new(builder = builder)
+    result = director.build(head, body)
 
 proc isClass*(T: typedesc): bool =
   ## Returns whether `T` is class or not.

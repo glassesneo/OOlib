@@ -9,12 +9,11 @@ class Sword:
   proc attack() =
     echo "attack!"
 
-
 class Gun:
   var
     capacity*: uint
     bullets: uint
-  proc `new`(capacity) =
+  proc `new`(capacity: uint) =
     self.capacity = capacity
     self.bullets = capacity
 

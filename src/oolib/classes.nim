@@ -119,3 +119,52 @@ proc getClassInfo*(head: NimNode): (ClassInfo, ClassKind) {.compileTime.} =
     result[0].inheritanceClassInfo(head)
   else:
     error "Too many arguments", head
+
+proc distinguishClassKind*(head: NimNode): ClassKind {.compileTime.} =
+  let node = block:
+    if head.kind == nnkCommand and head[0].eqIdent"pub":
+      head[1]
+    else:
+      head
+  case node.len
+  of 0:
+    # class A
+    return ClassKind.Normal
+  of 1:
+    error "Unsupported syntax", node
+  of 2:
+    case node.kind
+    of nnkCall:
+      if node.isDistinct:
+        # class A(distinct B)
+        return ClassKind.Distinct
+      # class A(B)
+      return ClassKind.Alias
+    of nnkInfix:
+      return ClassKind.Inheritance
+    of nnkPragmaExpr:
+      if node[0].isDistinct:
+        # class A(distinct B) {.pragma.}
+        return ClassKind.Distinct
+      if node[0].kind == nnkCall:
+        # class A(B) {.pragma.}
+        return ClassKind.Alias
+      if node[0].hasGenerics:
+        # class A[T, U] {.pragma.}
+        return ClassKind.Normal
+      # class A {.pragma.}
+      return ClassKind.Normal
+    of nnkCommand:
+      if node[1][0].eqIdent"impl":
+        # class A impl IA
+        return ClassKind.Implementation
+      error "Unsupported syntax", node
+    of nnkBracketExpr:
+      # class A[T, U]
+      return ClassKind.Normal
+    else:
+      error "Unsupported syntax", node
+  of 3:
+    return ClassKind.Inheritance
+  else:
+    error "Too many arguments", node
