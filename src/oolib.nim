@@ -1,7 +1,15 @@
 import
   std/macros,
-  oolib / [sub, classes, protocols],
-  oolib / class_state / [states, context]
+  std/tables,
+  oolib/[sub, classes, protocols, types],
+  oolib/class_builder/[
+    builder,
+    normal_builder,
+    inheritance_builder,
+    distinct_builder,
+    alias_builder,
+    implementation_builder
+  ]
 
 export
   optBase,
@@ -11,12 +19,20 @@ export
   initial
 
 macro class*(head: untyped, body: untyped = newEmptyNode()): untyped =
+  let classBuilderKinds: Table[ClassKind, Builder] = {
+    ClassKind.Normal: NormalBuilder.new().toInterface(),
+    ClassKind.Inheritance: InheritanceBuilder.new().toInterface(),
+    ClassKind.Distinct: DistinctBuilder.new().toInterface(),
+    ClassKind.Alias: AliasBuilder.new().toInterface(),
+    ClassKind.Implementation: ImplementationBuilder.new().toInterface()
+  }.toTable()
+
   let
-    info = getClassInfo(head)
-    context = newContext(newState(info), body)
-  result = newStmtList()
-  result.add context.defClass()
-  context.defBody(result)
+    classKind = distinguishClassKind(head)
+    builder = classBuilderKinds[classKind]
+    director = Director.new(builder = builder)
+
+  result = director.build(head, body)
 
 proc isClass*(T: typedesc): bool =
   ## Returns whether `T` is class or not.
