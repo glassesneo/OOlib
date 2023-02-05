@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [v0.6.1] -2023-2-5
+## Fixed
+- a bug that prevent working from exported variables
+
 ## [v0.6.0] -2023-2-5
 ## Removed
 - Argument type inference
