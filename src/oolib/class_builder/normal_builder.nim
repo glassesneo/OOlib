@@ -26,62 +26,69 @@ proc readHead(self: NormalBuilder; head: NimNode) {.compileTime.} =
   of nnkIdent:
     # class A
     self.name = node
+    return
   of nnkPragmaExpr:
-    if node[0].kind == nnkIdent:
-      # class A {.pragma.}
-      self.name = node[0]
-      self.pragmas = collect(for p in node[1]: p)
-    else:
-      error "Unsupported syntax", node
+    # class A {.pragma.}
+    self.name = node.basename
+    self.pragmas = collect(for p in node[1]: p)
   else:
     error "Unsupported syntax", node
 
 proc readBody(self: NormalBuilder; body: NimNode) {.compileTime.} =
   for node in body:
+    echo node.treeRepr
     case node.kind
     of nnkVarSection:
       for n in node:
         if ident"noNewDef" in self.pragmas and n.hasDefault:
           error "default values cannot be used with {.noNewDef.}", n
-        if n.hasPragma and "ignored" in n[0][1]:
+
+        if n[0].kind == nnkPragmaExpr and "ignored" in n[0][1]:
           error "{.ignored.} pragma cannot be used in non-implemented classes"
+
         n.inferValType()
         for d in n.decomposeIdentDefs():
-          if d.hasPragma and "initial" in d[0][1]:
+          if d[0].kind == nnkPragmaExpr and "initial" in d[0][1]:
             self.initialVariables.add d
           else:
             self.variables.add d
+
     of nnkConstSection:
       for n in node:
         if not n.hasDefault:
           error "A constant must have a value", node
+
         n.inferValType()
         for d in n.decomposeIdentDefs():
-          if d.hasPragma and "initial" in d[0][1]:
+          if d[0].kind == nnkPragmaExpr and "initial" in d[0][1]:
             error "{.initial.} pragma cannot be used with constant", d
-          else:
-            self.constants.add d
+
+          self.constants.add d
+
     of nnkProcDef:
       if node.isConstructor:
-        if self.constructor.kind == nnkEmpty:
-          self.constructor = node
-        else:
+        if self.constructor.kind != nnkEmpty:
           error "Constructor already exists", node
-      else:
-        let theProc = node
-        theProc.params.insert 1, newIdentDefs(ident"self", self.name)
-        self.routines.add theProc
+
+        self.constructor = node
+        continue
+
+      let theProc = node
+      theProc.params.insert 1, newIdentDefs(ident"self", self.name)
+      self.routines.add theProc
+
     of nnkMethodDef, nnkFuncDef, nnkIteratorDef, nnkConverterDef, nnkTemplateDef:
       let theProc = node
       theProc.params.insert 1, newIdentDefs(ident"self", self.name)
       self.routines.add theProc
+
     else:
       discard
 
 proc defineTypeSection(self: NormalBuilder) {.compileTime.} =
   self.typeSection = getAst defObj(self.name)
   if self.isPublic:
-    self.typeSection[0][0] = nnkPostfix.newTree(ident"*", self.typeSection[0][0])
+    self.typeSection[0][0] = self.typeSection[0][0].postfix"*"
   if ident"open" in self.pragmas:
     self.typeSection[0][2][0][1] = nnkOfInherit.newTree ident"RootObj"
   self.typeSection[0][0] = nnkPragmaExpr.newTree(
@@ -90,12 +97,12 @@ proc defineTypeSection(self: NormalBuilder) {.compileTime.} =
   )
 
 proc defineConstructor(self: NormalBuilder) {.compileTime.} =
-  if ident"noNewDef" in self.pragmas:
-    return
+  if ident"noNewDef" in self.pragmas: return
+
   if self.constructor.kind == nnkEmpty:
     let args = (self.variables & self.ignoredVariables).map(simplifyIdentDefs)
     let name =
-      if self.isPublic: nnkPostfix.newTree(ident"*", ident"new")
+      if self.isPublic: ident"new".postfix"*"
       else: ident"new"
     let params = self.name & (
       newIdentDefs(
@@ -116,7 +123,7 @@ proc defineConstructor(self: NormalBuilder) {.compileTime.} =
       .map(simplifyIdentDefs)
 
     self.constructor.name =
-      if self.isPublic: nnkPostfix.newTree(ident"*", ident"new")
+      if self.isPublic: ident"new".postfix"*"
       else: ident"new"
     self.constructor.params[0] = self.name
     for arg in args:
@@ -127,8 +134,8 @@ proc defineConstructor(self: NormalBuilder) {.compileTime.} =
         self.name
       )
     )
-    if self.constructor.body[0].kind == nnkDiscardStmt:
-      return
+    if self.constructor.body[0].kind == nnkDiscardStmt: return
+
     self.constructor.body.insert 0, newVarStmt(
       ident"self", newCall self.name
     )

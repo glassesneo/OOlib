@@ -1,5 +1,6 @@
 import
   std/macros,
+  std/tables,
   oolib/[sub, classes, protocols, types],
   oolib/class_builder/[
     builder,
@@ -18,33 +19,20 @@ export
   initial
 
 macro class*(head: untyped, body: untyped = newEmptyNode()): untyped =
-  let classKind = distinguishClassKind(head)
+  let classBuilderKinds: Table[ClassKind, Builder] = {
+    ClassKind.Normal: NormalBuilder.new().toInterface(),
+    ClassKind.Inheritance: InheritanceBuilder.new().toInterface(),
+    ClassKind.Distinct: DistinctBuilder.new().toInterface(),
+    ClassKind.Alias: AliasBuilder.new().toInterface(),
+    ClassKind.Implementation: ImplementationBuilder.new().toInterface()
+  }.toTable()
 
-  case classKind
-  of ClassKind.Normal:
-    let builder = NormalBuilder.new().toInterface()
-    let director = Director.new(builder = builder)
-    result = director.build(head, body)
+  let
+    classKind = distinguishClassKind(head)
+    builder = classBuilderKinds[classKind]
+    director = Director.new(builder = builder)
 
-  of ClassKind.Inheritance:
-    let builder = InheritanceBuilder.new().toInterface()
-    let director = Director.new(builder = builder)
-    result = director.build(head, body)
-
-  of ClassKind.Distinct:
-    let builder = DistinctBuilder.new().toInterface()
-    let director = Director.new(builder = builder)
-    result = director.build(head, body)
-
-  of ClassKind.Alias:
-    let builder = AliasBuilder.new().toInterface()
-    let director = Director.new(builder = builder)
-    result = director.build(head, body)
-
-  of ClassKind.Implementation:
-    let builder = ImplementationBuilder.new().toInterface()
-    let director = Director.new(builder = builder)
-    result = director.build(head, body)
+  result = director.build(head, body)
 
 proc isClass*(T: typedesc): bool =
   ## Returns whether `T` is class or not.
