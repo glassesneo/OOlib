@@ -75,7 +75,7 @@ func generateConstructorBody*(
     variables, initialVariables: seq[NimNode]
 ): NimNode {.compileTime.} =
   result = newStmtList(newVarStmt(ident"self", newCall name))
-  for v in variables.mapIt(it[0]):
+  for v in variables.map(removeAsteriskFromIdent).mapIt(it[0]):
     result.insert 1, quote do:
       self.`v` = `v`
   for def in initialVariables.map(simplifyIdentDefs):

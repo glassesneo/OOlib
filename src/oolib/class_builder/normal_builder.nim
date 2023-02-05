@@ -36,7 +36,6 @@ proc readHead(self: NormalBuilder; head: NimNode) {.compileTime.} =
 
 proc readBody(self: NormalBuilder; body: NimNode) {.compileTime.} =
   for node in body:
-    echo node.treeRepr
     case node.kind
     of nnkVarSection:
       for n in node:

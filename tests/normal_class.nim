@@ -4,7 +4,7 @@ discard """
 import ../src/oolib
 
 class Sword:
-  var offence: int
+  var offence*: int
 
   proc attack() =
     echo "attack!"
