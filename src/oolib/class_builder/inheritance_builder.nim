@@ -22,18 +22,21 @@ proc readHead(self: InheritanceBuilder; head: NimNode) {.compileTime.} =
       head[1]
     else:
       head
-  if node.kind == nnkInfix:
-    if node[2].kind == nnkPragmaExpr:
-      # class A of B {.pragma.}
-      self.name = node[1]
-      self.base = node[2][0]
-      self.pragmas = collect(for p in node[2][1]: p)
-      return
-    # class A of B
-    self.name = node[1]
-    self.base = node[2]
-  else:
+  if node.kind != nnkInfix:
     error "Unsupported syntax", node
+
+  # class A of B {.pragma.}
+  let headNodes = unpackInfix node
+
+  if headNodes.right.kind == nnkPragmaExpr:
+    self.name = headNodes.left
+    self.base = headNodes.right.basename
+    self.pragmas = collect(for p in headNodes.right[1]: p)
+    return
+
+  # class A of B
+  self.name = headNodes.left
+  self.base = headNodes.right
 
 proc readBody(self: InheritanceBuilder; body: NimNode) {.compileTime.} =
   for node in body:
