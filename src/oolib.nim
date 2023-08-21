@@ -1,57 +1,69 @@
 import
   std/macros,
-  std/tables,
-  oolib/[sub, classes, protocols, types],
-  oolib/class_builder/[
-    builder,
-    normal_builder,
-    inheritance_builder,
-    distinct_builder,
-    alias_builder,
-    implementation_builder
+  oolib/[
+    class_util,
+    normal_class,
+    distinct_class,
+    named_tuple_class
   ]
 
-export
-  optBase,
-  pClass,
-  pProtocol,
-  ignored,
-  initial
+proc classify(
+    signature: var ClassSignature,
+    definingNode: NimNode
+) {.compileTime.} =
+  case definingNode.kind
+  of nnkIdent:
+    # class A
+    signature.className = definingNode
+    signature.classKind = NormalClass
 
-macro class*(head: untyped, body: untyped = newEmptyNode()): untyped =
-  let classBuilderKinds: Table[ClassKind, Builder] = {
-    ClassKind.Normal: NormalBuilder.new().toInterface(),
-    ClassKind.Inheritance: InheritanceBuilder.new().toInterface(),
-    ClassKind.Distinct: DistinctBuilder.new().toInterface(),
-    ClassKind.Alias: AliasBuilder.new().toInterface(),
-    ClassKind.Implementation: ImplementationBuilder.new().toInterface()
-  }.toTable()
+  of nnkCall:
+    if definingNode.len == 2:
+      case definingNode[1].kind
+      of nnkDistinctTy:
+        # class A(distinct B)
+        signature.className = definingNode[0]
+        signature.baseName = definingNode[1][0]
+        signature.classKind = DistinctClass
 
-  let
-    classKind = distinguishClassKind(head)
-    builder = classBuilderKinds[classKind]
-    director = Director.new(builder = builder)
+      of nnkTupleClassTy:
+        # class A(tuple)
+        signature.className = definingNode[0]
+        signature.classKind = NamedTupleClass
 
-  result = director.build(head, body)
+      else:
+        error "Unsupported syntax", definingNode[1]
 
-proc isClass*(T: typedesc): bool =
-  ## Returns whether `T` is class or not.
-  T.hasCustomPragma(pClass)
+    else:
+      error "Unsupported syntax", definingNode
 
-proc isClass*[T](instance: T): bool =
-  ## Is an alias for `isClass(T)`.
-  T.isClass()
+  of nnkPragmaExpr:
+    if signature.pragmas.len != 0:
+      error "Unsupported syntax", definingNode
 
-macro protocol*(head: untyped, body: untyped = newEmptyNode()): untyped =
-  let
-    info = parseProtocolHead(head)
-    members = parseProtocolBody(body, info)
-  result = defProtocol(info, members)
+    # class ... {.pragma.}
+    signature.pragmas.add definingNode[1][0..^1]
+    signature.classify(definingNode[0])
 
-proc isProtocol*(T: typedesc): bool =
-  ## Returns whether `T` is protocol or not.
-  T.hasCustomPragma(pProtocol)
+  else:
+    error "Unsupported syntax", definingNode
 
-proc isProtocol*[T](instance: T): bool =
-  ## Is an alias for `isProtocol(T)`.
-  T.isProtocol()
+macro class*(head: untyped; body: untyped = newEmptyNode()): untyped =
+  var signature: ClassSignature
+
+  let definingNode = block:
+    if head.kind == nnkCommand and head[0].eqIdent"pub":
+      signature.isPublic = true
+      head[1]
+    else:
+      head
+
+  signature.classify(definingNode)
+
+  result = case signature.classKind
+    of NormalClass:
+      signature.defineNormalClass(body)
+    of DistinctClass:
+      signature.defineDistinctClass(body)
+    of NamedTupleClass:
+      signature.defineNamedTupleClass(body)
