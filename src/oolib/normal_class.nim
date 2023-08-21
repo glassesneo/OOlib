@@ -25,6 +25,10 @@ proc readBody(
       theProc.insertSelf(signature.className)
       signature.routines.add theProc
 
+    of nnkFuncDef, nnkMethodDef, nnkIteratorDef, nnkTemplateDef, nnkConverterDef:
+      node.insertSelf(signature.className)
+      signature.routines.add node
+
     else:
       discard
 
