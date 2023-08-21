@@ -1,5 +1,6 @@
 import
   std/macros,
+  std/sequtils,
   ./class_util
 
 proc readBody(
@@ -41,7 +42,7 @@ proc addVariables(
 ) {.compileTime.} =
   let recList = nnkRecList.newNimNode()
   for v in variables:
-    recList.add v
+    recList.add v.deleteSpecialPragmasFromIdent()
   typeNode[0][2][0][2] = recList
 
 proc defineType(signature: ClassSignature): NimNode {.compileTime.} =
@@ -59,6 +60,14 @@ proc defineType(signature: ClassSignature): NimNode {.compileTime.} =
   for routine in signature.routines:
     result.add routine
 
+proc hasInitialPragma(identDef: NimNode): bool {.compileTime.} =
+  identDef.expectLen(3)
+  if not identDef.hasPragma:
+    return
+  for pragma in identDef[0][1]:
+    if pragma.eqIdent"initial":
+      return true
+
 proc defineConstructorFromScratch(
     signature: ClassSignature
 ): NimNode {.compileTime.} =
@@ -75,6 +84,7 @@ proc defineConstructorFromScratch(
         signature.className
       )
     ) & signature.variables
+      .filterIt(not it.hasInitialPragma)
 
     constructorBody = newStmtList()
 
@@ -82,9 +92,19 @@ proc defineConstructorFromScratch(
     ident"self", newCall(signature.className)
   )
   for identDef in signature.variables:
-    let v = identDef[0]
+    let v = identDef.deleteSpecialPragmasFromIdent()[0]
+    if identDef.hasInitialPragma:
+      if identDef[2].kind == nnkEmpty:
+        error "a member variables with {.initial.} must have a default value":
+          identDef[2]
+      let initial = identDef[2]
+      constructorBody.add quote do:
+        self.`v` = `initial`
+      continue
+
     constructorBody.add quote do:
       self.`v` = `v`
+
   constructorBody.add quote do:
     result = self
 

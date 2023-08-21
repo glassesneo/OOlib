@@ -17,6 +17,10 @@ type
     routines: seq[NimNode]
     constructors: seq[NimNode]
 
+const specialPragmas* = @[
+  "initial"
+]
+
 proc decomposeIdentDefs*(identDefs: NimNode): seq[NimNode] {.compileTime.} =
   for name in identDefs[0..^3]:
     result.add newIdentDefs(
@@ -37,6 +41,33 @@ proc isConstructor*(theProc: NimNode): bool {.compileTime.} =
 
 proc insertSelf*(theProc, name: NimNode) {.compileTime.} =
   insert(theProc.params, 1, newIdentDefs(ident"self", name))
+
+proc hasPragma*(identDef: NimNode): bool {.compileTime.} =
+  identDef.expectLen(3)
+  result = identDef[0].kind == nnkPragmaExpr
+
+proc hasAnySpecialPragma*(identDef: NimNode): bool {.compileTime.} =
+  identDef.expectLen(3)
+  identDef[0].expectKind(nnkPragmaExpr)
+  for pragma in identDef[0][1]:
+    if pragma.strVal in specialPragmas:
+      return true
+
+proc deleteSpecialPragmasFromIdent*(identDef: NimNode): NimNode {.compileTime.} =
+  identDef.expectLen(3)
+  result = block:
+    if identDef.hasPragma and identDef.hasAnySpecialPragma:
+      newIdentDefs(
+        name = identDef[0][0],
+        kind = identDef[1],
+        default = identDef[2]
+      )
+    else:
+      newIdentDefs(
+        name = identDef[0],
+        kind = identDef[1],
+        default = identDef[2]
+      )
 
 proc markWithAsterisk*(typeNode: NimNode) {.compileTime.} =
   typeNode[0][0] = typeNode[0][0].postfix"*"
