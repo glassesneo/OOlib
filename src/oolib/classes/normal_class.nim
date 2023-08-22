@@ -14,6 +14,7 @@ proc readBody(
     case node.kind
     of nnkVarSection:
       for identDefs in node:
+        identDefs.inferValType()
         signature.variables.add decomposeIdentDefs(identDefs)
 
     of nnkProcDef:

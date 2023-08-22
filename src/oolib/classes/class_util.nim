@@ -6,6 +6,7 @@ type
     NormalClass
     DistinctClass
     NamedTupleClass
+    ImplementClass
 
   ClassSignature* = tuple
     className: NimNode
@@ -20,6 +21,19 @@ type
 const specialPragmas* = @[
   "initial"
 ]
+
+proc procedures*(
+    signature: ClassSignature
+): seq[NimNode] {.compileTime.} =
+  for p in signature.routines:
+    if p.kind == nnkProcDef:
+      result.add p
+
+proc isImplement*(node: NimNode): bool {.compileTime.} =
+  node.expectKind(nnkCommand)
+  node[0].kind == nnkIdent and
+  node[1].kind == nnkCommand and
+  node[1][0].eqIdent"impl"
 
 proc decomposeIdentDefs*(identDefs: NimNode): seq[NimNode] {.compileTime.} =
   for name in identDefs[0..^3]:
@@ -84,3 +98,7 @@ proc addPragmas*(
     typeNode[0][0],
     pragmaNode
   )
+
+func inferValType*(node: NimNode) {.compileTime.} =
+  node.expectKind nnkIdentDefs
+  node[^2] = node[^2] or newCall(ident"typeof", node[^1])

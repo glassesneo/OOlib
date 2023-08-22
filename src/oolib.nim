@@ -1,10 +1,18 @@
 import
+  std/macrocache,
   std/macros,
-  oolib/[
+  std/strformat,
+  oolib/classes/[
     class_util,
-    normal_class,
     distinct_class,
-    named_tuple_class
+    implement_class,
+    named_tuple_class,
+    normal_class
+  ],
+  oolib/protocols/[
+    protocol_core,
+    protocol_util
+
   ]
 
 proc classify(
@@ -37,6 +45,21 @@ proc classify(
     else:
       error "Unsupported syntax", definingNode
 
+  of nnkCommand:
+    if not definingNode.isImplement:
+      error "Unsupported syntax", definingNode
+
+    signature.className = definingNode[0]
+    if definingNode[1][1].kind == nnkPragmaExpr:
+      signature.baseName = definingNode[1][1][0]
+      signature.pragmas.add definingNode[1][1][1][0..^1]
+    else:
+      signature.baseName = definingNode[1][1]
+    signature.classKind = ImplementClass
+
+    if not ProtocolTable.hasKey(signature.baseName.strVal):
+      error fmt"Protocol {signature.baseName} doesn't exist", signature.baseName
+
   of nnkPragmaExpr:
     if signature.pragmas.len != 0:
       error "Unsupported syntax", definingNode
@@ -67,3 +90,19 @@ macro class*(head: untyped; body: untyped = newEmptyNode()): untyped =
       signature.defineDistinctClass(body)
     of NamedTupleClass:
       signature.defineNamedTupleClass(body)
+    of ImplementClass:
+      signature.defineImplementClass(body)
+
+macro protocol*(head: untyped; body: untyped = newEmptyNode()): untyped =
+  var signature: ProtocolSignature
+
+  signature.protocolName = block:
+    if head.kind == nnkCommand and head[0].eqIdent"pub":
+      signature.isPublic = true
+      head[1]
+    else:
+      head
+
+  result = signature.defineProtocol(body)
+
+  ProtocolTable[signature.protocolName.strVal] = result
