@@ -10,8 +10,14 @@ protocol pub IA:
   proc wow
   proc f(v1: int, v2: int): int
 
-class A impl IA:
+protocol IB:
+  var isOK: bool
+  var wtf: int
+
+class A impl (IA, IB):
   var v = ""
+  var wtf {.initial.} = 0
+  var isOK: bool
   proc wow =
     echo "wow"
 
@@ -21,6 +27,6 @@ class A impl IA:
   proc f2 {.used.} =
     echo "f2"
 
-let a = A.new("aa")
+let a = A.new("aa", true)
 
 let _ = a.toProtocol()

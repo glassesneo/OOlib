@@ -1,5 +1,6 @@
 import
   std/macros,
+  std/sequtils,
   ./protocol_util
 
 proc readBody(
@@ -36,7 +37,7 @@ proc addVariables(
   for v in variables:
     typeNode[0][2].add v
 
-proc convertIntoIdentDef(
+proc convertIntoIdentDef*(
     theProc: NimNode
 ): NimNode {.compileTime.} =
   result = newIdentDefs(
@@ -58,8 +59,8 @@ proc defineType(signature: ProtocolSignature): NimNode {.compileTime.} =
   if signature.isPublic:
     markWithAsterisk(typeSection)
 
-  typeSection.addVariables(signature.variables)
-  typeSection.addProcedures(signature.procedures)
+  typeSection.addVariables(signature.variables.map(deletePragmasFromIdent))
+  typeSection.addProcedures(signature.procedures.map(deletePragmasFromProc))
 
   result.add typeSection
 
@@ -69,11 +70,3 @@ proc defineProtocol*(
 ): NimNode {.compileTime.} =
   signature.readBody(body)
   result = defineType(signature)
-
-proc simplifyParams*(params: NimNode): NimNode {.compileTime.} =
-  params.expectKind(nnkFormalParams)
-
-  result = nnkFormalParams.newTree(params[0])
-
-  for identDefs in params[1..^1]:
-    result.add decomposeIdentDefs(identDefs)

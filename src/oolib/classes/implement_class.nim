@@ -1,6 +1,7 @@
 import
   std/macrocache,
   std/macros,
+  std/sets,
   std/sequtils,
   std/strformat,
   ./class_util
@@ -38,6 +39,17 @@ proc readBody(
     else:
       discard
 
+proc combineProtocolTupleTys(
+    protocolNames: seq[NimNode]
+): NimNode {.compileTime.} =
+  result = nnkTupleTy.newNimNode()
+  for name in protocolNames:
+    let tupleTy = ProtocolTable[name.strVal]
+
+    for identDef in tupleTy:
+      if identDef notin result[0..^1]:
+        result.add identDef
+
 proc checkIfVariableIsImplemented(
     variables: seq[NimNode],
     identDef: NimNode
@@ -50,7 +62,11 @@ proc checkIfVariableIsImplemented(
     if hasSameName:
       return
 
-  error fmt"{identDef[0]} is unimplemented", identDef[0]
+  let node = block:
+    if identDef[0].kind == nnkPragmaExpr: identDef[0][0]
+    else: identDef[0]
+
+  error fmt"{node} is unimplemented", node
 
 proc checkIfProcIsImplemented(
     procedures: seq[NimNode],
@@ -234,7 +250,7 @@ proc defineConvertionProc(
   result = newProc(
     name = ident"toProtocol",
     params = [
-      signature.baseName,
+      tupleTy,
       newIdentDefs(ident"self", signature.className)
     ],
     body = procBody
@@ -246,7 +262,7 @@ proc defineImplementClass*(
 ): NimNode {.compileTime.} =
   signature.readBody(body)
 
-  let tupleTy = ProtocolTable[signature.baseName.strVal][0][0][2]
+  let tupleTy = combineProtocolTupleTys(signature.protocols)
 
   for identDef in tupleTy:
     if identDef[1].kind == nnkProcTy:

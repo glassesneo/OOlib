@@ -13,6 +13,7 @@ type
     baseName: NimNode
     classKind: ClassKind
     isPublic: bool
+    protocols: seq[NimNode]
     pragmas: seq[NimNode]
     variables: seq[NimNode]
     routines: seq[NimNode]

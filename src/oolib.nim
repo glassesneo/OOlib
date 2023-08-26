@@ -50,15 +50,23 @@ proc classify(
       error "Unsupported syntax", definingNode
 
     signature.className = definingNode[0]
-    if definingNode[1][1].kind == nnkPragmaExpr:
-      signature.baseName = definingNode[1][1][0]
-      signature.pragmas.add definingNode[1][1][1][0..^1]
+    let protocols = block:
+      if definingNode[1][1].kind == nnkPragmaExpr:
+        signature.pragmas.add definingNode[1][1][1][0..^1]
+        definingNode[1][1][0]
+      else:
+        definingNode[1][1]
+
+    if protocols.kind == nnkIdent:
+      signature.protocols.add protocols
     else:
-      signature.baseName = definingNode[1][1]
+      signature.protocols = protocols[0..^1]
+
     signature.classKind = ImplementClass
 
-    if not ProtocolTable.hasKey(signature.baseName.strVal):
-      error fmt"Protocol {signature.baseName} doesn't exist", signature.baseName
+    for protocol in signature.protocols:
+      if not ProtocolTable.hasKey(protocol.strVal):
+        error fmt"Protocol {protocol} doesn't exist", protocol
 
   of nnkPragmaExpr:
     if signature.pragmas.len != 0:
@@ -103,6 +111,14 @@ macro protocol*(head: untyped; body: untyped = newEmptyNode()): untyped =
     else:
       head
 
-  result = signature.defineProtocol(body)
+  let tupleTy = nnkTupleTy.newNimNode()
 
-  ProtocolTable[signature.protocolName.strVal] = result
+  for v in signature.variables:
+    tupleTy.add v
+
+  for p in signature.procedures:
+    tupleTy.add convertIntoIdentDef(p)
+
+  ProtocolTable[signature.protocolName.strVal] = tupleTy
+
+  result = signature.defineProtocol(body)
