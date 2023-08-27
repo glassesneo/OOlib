@@ -1,8 +1,8 @@
 # Package
 
-version       = "0.6.1"
+version       = "0.7.0"
 author        = "Glasses-Neo"
-description   = "A nimble package which provides user-defined types, procedures, etc..."
+description   = "A nimble package for object-oriented programming"
 license       = "WTFPL"
 srcDir        = "src"
 

@@ -4,17 +4,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [Unreleased]
+
+## [v0.7.0] -2023-8-27
+### Added
+- `class` macro can now generate multiple constructors
+- `class` macro can now deal with multiple implementations of `protocol`
+    - See tests dir for more details
+- `{.construct.}` macro that generates a constructor for standard type definitions
+- `{.protocoled.}` macro that make a tuple definition a protocol
+
+### Changed
+- Renamed `toInterface` to `toProtocol`
+- Removed implemented procedures in `protocol` due to the BREAKING CHANGES
+    - This feature will be back in the next version
+
+### Removed
+#### 💥BREAKING CHANGES
+- Removed some features below:
+    - Class data constant
+    - Inheritance class, `super` keyword and `{.open.}`
+    - Alias class
+    - `{.pClass.}`, `{.pProtocol.}`
+    - `{.noNewDef.}` for `class`
+
 ## [v0.6.1] -2023-2-5
-## Fixed
+### Fixed
 - a bug that prevent working from exported variables
 
 ## [v0.6.0] -2023-2-5
-## Removed
+### Removed
 - Argument type inference
 - Support for generics
 
 ## [v0.5.0] -2022-9-24
-## Added
+### Added
 - NamedTuple implementation [#78](https://github.com/Glasses-Neo/OOlib/issues/78)
   - classes aliasing tuples are now converted to named tuples and member variables can be defined
 - Argument type inference [#101](https://github.com/Glasses-Neo/OOlib/issues/101)
@@ -24,7 +48,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - `super` for constructor of inheritance classes [#102](https://github.com/Glasses-Neo/OOlib/issues/102)
 - `{.initial.}` to set initial values [#118](https://github.com/Glasses-Neo/OOlib/issues/118)
 
-## Removed
+### Removed
 - Old constructors are now removed [#96](https://github.com/Glasses-Neo/OOlib/issues/96)
 
 ## [v0.4.3] -2022-5-22
@@ -93,10 +117,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## v0.1.0 - 2021-8-1
 - 🎉 First release!
 
-[v0.5.0]: https://github.com/Glasses-Neo/OOlib/compare/0.4.3..0.5.0
-[v0.4.3]: https://github.com/Glasses-Neo/OOlib/compare/0.4.2..0.4.3
-[v0.4.2]: https://github.com/Glasses-Neo/OOlib/compare/0.4.1..0.4.2
-[v0.4.1]: https://github.com/Glasses-Neo/OOlib/compare/0.4.0..0.4.1
+[Unreleased]: https://github.com/Glasses-Neo/OOlib/compare/0.7.0...HEAD
+[v0.7.0]: https://github.com/Glasses-Neo/OOlib/compare/0.6.1...0.7.0
+[v0.6.1]: https://github.com/Glasses-Neo/OOlib/compare/0.6.0...0.6.1
+[v0.6.0]: https://github.com/Glasses-Neo/OOlib/compare/0.5.0...0.6.0
+[v0.5.0]: https://github.com/Glasses-Neo/OOlib/compare/0.4.3...0.5.0
+[v0.4.3]: https://github.com/Glasses-Neo/OOlib/compare/0.4.2...0.4.3
+[v0.4.2]: https://github.com/Glasses-Neo/OOlib/compare/0.4.1...0.4.2
+[v0.4.1]: https://github.com/Glasses-Neo/OOlib/compare/0.4.0...0.4.1
 [v0.4.0]: https://github.com/Glasses-Neo/OOlib/compare/0.3.0...0.4.0
 [v0.3.0]: https://github.com/Glasses-Neo/OOlib/compare/0.2.2...0.3.0
 [v0.2.2]: https://github.com/Glasses-Neo/OOlib/compare/0.2.1...0.2.2
