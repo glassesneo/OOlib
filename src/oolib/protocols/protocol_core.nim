@@ -20,7 +20,7 @@ proc readBody(
       let theProc = node.copyNimTree
 
       if theProc.body.kind notin {nnkEmpty, nnkDiscardStmt}:
-        error "Protocol cannot have procedure implementation"
+        error "Protocol cannot have procedure implementation", theProc
 
       signature.procedures.add theProc
 
@@ -41,7 +41,7 @@ proc convertIntoIdentDef*(
     theProc: NimNode
 ): NimNode {.compileTime.} =
   result = newIdentDefs(
-    name = theProc.name,
+    name = theProc[0],
     kind = nnkProcTy.newTree(theProc.params, newEmptyNode())
   )
 

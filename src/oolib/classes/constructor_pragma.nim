@@ -62,6 +62,8 @@ proc defineConstructorFromScratch*(
       )
     ) & signature.variables
       .filterIt(not it.hasInitialPragma)
+      .map(deleteAsteriskFromIdent)
+      .map(deletePragmasFromIdent)
 
     constructorBody = newStmtList()
 
@@ -69,18 +71,19 @@ proc defineConstructorFromScratch*(
     ident"self", newCall(signature.className)
   )
   for identDef in signature.variables:
-    let v = identDef.deleteSpecialPragmasFromIdent()[0]
+    let name = deleteSpecialPragmasFromIdent(identDef).deleteAsteriskFromIdent()[0]
     if identDef.hasInitialPragma:
       if identDef[2].kind == nnkEmpty:
         error "a member variables with {.initial.} must have a default value":
           identDef[2]
       let initial = identDef[2]
       constructorBody.add quote do:
-        self.`v` = `initial`
+        self.`name` = `initial`
       continue
 
+    let v = name.basename
     constructorBody.add quote do:
-      self.`v` = `v`
+      self.`name` = `v`
 
   constructorBody.add quote do:
     result = self

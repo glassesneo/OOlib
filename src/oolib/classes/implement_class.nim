@@ -1,7 +1,6 @@
 import
   std/macrocache,
   std/macros,
-  std/sets,
   std/sequtils,
   std/strformat,
   ./class_util
@@ -44,7 +43,7 @@ proc combineProtocolTupleTys(
 ): NimNode {.compileTime.} =
   result = nnkTupleTy.newNimNode()
   for name in protocolNames:
-    let tupleTy = ProtocolTable[name.strVal]
+    let tupleTy = ProtocolTable[name.strVal].copyNimTree()
 
     for identDef in tupleTy:
       if identDef notin result[0..^1]:
@@ -56,10 +55,7 @@ proc checkIfVariableIsImplemented(
 ) {.compileTime.} =
   for v in variables:
 
-    let
-      hasSameName = v[0].eqIdent identDef[0]
-      # hasSameType = v[1].eqIdent identDef[1]
-    if hasSameName:
+    if deletePragmasFromIdent(v)[0].eqIdent deletePragmasFromIdent(identDef)[0]:
       return
 
   let node = block:
@@ -134,6 +130,8 @@ proc defineConstructorFromScratch(
       )
     ) & signature.variables
       .filterIt(not it.hasInitialPragma)
+      .map(deleteAsteriskFromIdent)
+      .map(deletePragmasFromIdent)
 
     constructorBody = newStmtList()
 
@@ -141,18 +139,19 @@ proc defineConstructorFromScratch(
     ident"self", newCall(signature.className)
   )
   for identDef in signature.variables:
-    let v = identDef.deleteSpecialPragmasFromIdent()[0]
+    let name = deleteSpecialPragmasFromIdent(identDef).deleteAsteriskFromIdent()[0]
     if identDef.hasInitialPragma:
       if identDef[2].kind == nnkEmpty:
         error "a member variables with {.initial.} must have a default value":
           identDef[2]
       let initial = identDef[2]
       constructorBody.add quote do:
-        self.`v` = `initial`
+        self.`name` = `initial`
       continue
 
+    let v = name.basename
     constructorBody.add quote do:
-      self.`v` = `v`
+      self.`name` = `v`
 
   constructorBody.add quote do:
     result = self

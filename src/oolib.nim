@@ -13,7 +13,6 @@ import
   oolib/protocols/[
     protocol_core,
     protocol_util
-
   ]
 
 proc classify(
@@ -65,9 +64,9 @@ proc classify(
 
     signature.classKind = ImplementClass
 
-    for protocol in signature.protocols:
-      if not ProtocolTable.hasKey(protocol.strVal):
-        error fmt"Protocol {protocol} doesn't exist", protocol
+    # for protocol in signature.protocols:
+    #   if not ProtocolTable.hasKey(protocol.strVal):
+    #     error fmt"Protocol {protocol} doesn't exist", protocol
 
   of nnkPragmaExpr:
     if signature.pragmas.len != 0:
@@ -116,7 +115,7 @@ macro construct*(typeDef: untyped): untyped =
           Internal
         body[0][0][2][0][2] = nnkRecList.newNimNode()
         for v in signature.variables:
-          body[0][0][2][0][2].add deletePragmasFromIdent(v)
+          body[0][0][2][0][2].add class_util.deletePragmasFromIdent(v)
         body
 
       else:
@@ -125,7 +124,7 @@ macro construct*(typeDef: untyped): untyped =
           Internal
         body[0][0][2][2] = nnkRecList.newNimNode()
         for v in signature.variables:
-          body[0][0][2][2].add deletePragmasFromIdent(v)
+          body[0][0][2][2].add class_util.deletePragmasFromIdent(v)
         body
 
     internalBody.insert 1, defineConstructorFromScratch(signature)
@@ -144,6 +143,8 @@ macro protocol*(head: untyped; body: untyped = newEmptyNode()): untyped =
     else:
       head
 
+  result = signature.defineProtocol(body)
+
   let tupleTy = nnkTupleTy.newNimNode()
 
   for v in signature.variables:
@@ -153,8 +154,6 @@ macro protocol*(head: untyped; body: untyped = newEmptyNode()): untyped =
     tupleTy.add convertIntoIdentDef(p)
 
   ProtocolTable[signature.protocolName.strVal] = tupleTy
-
-  result = signature.defineProtocol(body)
 
 macro protocoled*(typeDef: untyped): untyped =
   let protocolName = typeDef[0][0]

@@ -14,8 +14,8 @@ class pub C
 
 class D:
   var
-    a, b: int
-    c: string
+    a*, b: int
+    c*: string
   var d: bool
 
 class E:

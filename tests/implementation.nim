@@ -5,34 +5,39 @@ discard """
 import
   ../src/oolib
 
-protocol pub IA:
-  var v: string
-  proc wow
-  proc f(v1: int, v2: int): int
+protocol Readable:
+  var text: string
 
-protocol IB:
-  var isOK: bool
-  var wtf: int
+protocol Writable:
+  var text: string
+  proc `text=`(value: string)
 
-class A impl (IA, IB):
-  var v = ""
-  var wtf {.initial.} = 0
-  var isOK: bool
-  proc wow {.used.} =
-    echo "wow"
+protocol Product:
+  var price: int
 
-  proc f(v1, v2: int): int {.used.} =
-    result = v1 + v2
+type Writer* {.protocoled.} = tuple
+  write: proc(text: string)
 
-  proc f2 {.used.} =
-    echo "f2"
+class Book impl (Readable, Product):
+  var
+    text: string = ""
+    price: int
 
-let a = A.new("aa", true)
+class Diary impl (Readable, Writable, Product):
+  var text {.initial.}: string = ""
+  var price: int
+  proc `text=`(value: string) =
+    self.text = value
 
-let _ = a.toProtocol()
+class HTMLWriter impl Writer:
+  var writable: Writable
+  proc write(text: string) =
+    self.writable.text = text
 
-type IC* {.protocoled.} = tuple
-  f: proc(x: int): int
+let book = Book.new(price = 500)
 
-class B impl IC:
-  proc f(x: int): int = x*x
+let _ = book.toProtocol()
+
+let diary = Diary.new(price = 300)
+
+let _ = diary.toProtocol()

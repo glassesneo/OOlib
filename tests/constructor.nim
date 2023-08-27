@@ -39,7 +39,7 @@ class Sword:
 let _ = Sword.new(8)
 
 type Shield {.construct.} = ref object
-  deffence: int
+  deffence*: int
   price {.initial.}: int = 100
 
 # made by `{.construct.}` pragma

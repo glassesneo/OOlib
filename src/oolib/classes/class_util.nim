@@ -57,9 +57,38 @@ proc isConstructor*(theProc: NimNode): bool {.compileTime.} =
 proc insertSelf*(theProc, name: NimNode) {.compileTime.} =
   insert(theProc.params, 1, newIdentDefs(ident"self", name))
 
+proc deleteAsteriskFromIdent*(identDef: NimNode): NimNode {.compileTime.} =
+  identDef.expectLen(3)
+  result = identDef
+  case identDef[0].kind
+  of nnkPragmaExpr:
+    result[0] = identDef[0][0].basename
+  of nnkPostfix:
+    result[0] = identDef[0][1]
+  of nnkIdent:
+    result[0] = identDef[0]
+  else:
+    error "Unsupported syntax", identDef[0]
+
 proc hasPragma*(identDef: NimNode): bool {.compileTime.} =
   identDef.expectLen(3)
   result = identDef[0].kind == nnkPragmaExpr
+
+proc deletePragmasFromIdent*(identDef: NimNode): NimNode {.compileTime.} =
+  identDef.expectLen(3)
+  result = block:
+    if identDef.hasPragma:
+      newIdentDefs(
+        name = identDef[0][0],
+        kind = identDef[1],
+        default = identDef[2]
+      )
+    else:
+      newIdentDefs(
+        name = identDef[0],
+        kind = identDef[1],
+        default = identDef[2]
+      )
 
 proc hasAnySpecialPragma*(identDef: NimNode): bool {.compileTime.} =
   identDef.expectLen(3)
