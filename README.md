@@ -11,44 +11,60 @@
 OOlib is a nimble package for object oriented programming.
 
 ## 📜Usage
+### class
 ```nim
-import strformat
 import oolib
 
-# add `pub` prefix to export class
-class pub Person:
+class Person:
   var
-    name*: string
-    age* = 0
+    name: string
+    age = 0
 
-  # auto insert `self` as first argument
-  proc `$`*: string = fmt"<Person> name: {self.name}"
+let steve = Person.new(name = "Steve")
+let tony = Person.new(name = "Tony", age = 30)
+```
+### protocol
+```nim
+import oolib
 
-  proc happyBirthday* =
-    inc self.age
+protocol Readable:
+  var text: string
 
-# auto define constructor
-let p1 = Person.new("Tony")
-let p2 = Person.new("Steve", 100)
+protocol Writable:
+  var text: string
+  proc `text=`(value: string)
+
+protocol Product:
+  var price: int
+
+protocol pub Writer:
+  proc write(text: string)
+
+class Book impl (Readable, Product):
+  var
+    text: string = ""
+    price: int
+
+class Diary impl (Readable, Writable, Product):
+  var text {.initial.}: string = ""
+  var price: int
+  proc `text=`(value: string) =
+    self.text = value
+
+class HTMLWriter impl Writer:
+  var writable: Writable
+  proc write(text: string) =
+    self.writable.text = text
 ```
 
 ## ✨Features
-- Member variables with default values
-- Class data constants
-- Definition of `proc`, `method`, `func`, etc... (the only exception being `macro`)
-- Auto definition of constructor
-- Support for inheritance, distinct, alias
-- `super` keyword for `method`
-- `{.final.}` by default
-- `protocol` that provides interfaces for `class`
-
-### details
-See [Wiki](https://github.com/Glasses-Neo/OOlib/wiki)
-
-### 💭Planned
-- `struct`
-- setter / getter
-- `dataclass` like Kotlin's `data class`
+- `class` macro
+    - Automatic generation of constructor
+    - `self` inserted in procedures
+    - all routines (e.g., method, converter, template) with the only exception of macro
+- `protocol` macro
+    - Provide an Kotlin-like interface
+    - defining setter/getter
 
 ## Changelog
 See [CHANGELOG](https://github.com/Glasses-Neo/OOlib/blob/develop/CHANGELOG.md)

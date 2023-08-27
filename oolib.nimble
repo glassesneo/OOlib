@@ -1,15 +1,15 @@
 # Package
 
-version       = "0.6.1"
+version       = "0.7.0"
 author        = "Glasses-Neo"
-description   = "A nimble package which provides user-defined types, procedures, etc..."
+description   = "A nimble package for object-oriented programming"
 license       = "WTFPL"
 srcDir        = "src"
 
 
 # Dependencies
 
-requires "nim >= 1.6.0"
+requires "nim >= 2.0.0"
 
 task tests, "Run all tests":
   exec "testament p 'tests/**.nim'"
