@@ -49,7 +49,7 @@ proc isConstructor*(theProc: NimNode): bool {.compileTime.} =
   of nnkAccQuoted:
     return theProc.name.eqIdent"new"
   of nnkPostfix:
-    let name = unpackPostfix(theProc[0]).node
+    let name = theProc[0].basename
     return name.kind == nnkAccQuoted and name.eqIdent"new"
   else:
     return false

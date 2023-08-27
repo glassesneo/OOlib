@@ -11,13 +11,13 @@ proc readTypeSection*(typeDef: NimNode): ClassSignature {.compileTime.} =
     result.pragmas = typeDef[0][1][0..^1]
     if typeDef[0][0].kind == nnkPostfix:
       result.isPublic = true
-      result.className = unpackPostfix(typeDef[0][0]).node
+      result.className = typeDef[0][0].basename
     else:
       result.className = typeDef[0][0]
 
   of nnkPostfix:
     result.isPublic = true
-    result.className = unpackPostfix(typeDef[0]).node
+    result.className = typeDef[0].basename
 
   of nnkIdent:
     result.className = typeDef[0]

@@ -1,7 +1,6 @@
 import
   std/macrocache,
   std/macros,
-  std/strformat,
   oolib/classes/[
     class_util,
     constructor_pragma,
