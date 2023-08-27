@@ -155,3 +155,11 @@ macro protocol*(head: untyped; body: untyped = newEmptyNode()): untyped =
   ProtocolTable[signature.protocolName.strVal] = tupleTy
 
   result = signature.defineProtocol(body)
+
+macro protocoled*(typeDef: untyped): untyped =
+  let protocolName = typeDef[0][0]
+  typeDef[0] = protocolName
+
+  result = typeDef
+
+  ProtocolTable[protocolName.basename.strVal] = typeDef[2]
