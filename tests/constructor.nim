@@ -21,7 +21,7 @@ class Gun:
     self.capacity = capacity
     self.price = 200
 
-# This `new()` is made from type signature
+# This `new()` is made from the type definition
 let _ = Gun.new(offence = 5, price = 6)
 
 # 2nd one
@@ -35,5 +35,12 @@ class Sword:
     offence: int
     price {.initial.} = 100
 
-# made from type signature
+# made from the type definition
 let _ = Sword.new(8)
+
+type Shield {.construct.} = ref object
+  deffence: int
+  price {.initial.}: int = 100
+
+# made by `{.construct.}` pragma
+let _ = Shield.new(4)

@@ -4,6 +4,7 @@ import
   std/strformat,
   oolib/classes/[
     class_util,
+    constructor_pragma,
     distinct_class,
     implement_class,
     named_tuple_class,
@@ -100,6 +101,38 @@ macro class*(head: untyped; body: untyped = newEmptyNode()): untyped =
       signature.defineNamedTupleClass(body)
     of ImplementClass:
       signature.defineImplementClass(body)
+
+macro construct*(typeDef: untyped): untyped =
+  result = typeDef
+
+  var signature = readTypeSection(typeDef)
+
+  let rightHand = nnkStmtListType.newNimNode()
+  block:
+    let internalBody = block:
+      if typeDef[2].kind == nnkRefTy:
+        let body = quote do:
+          type Internal = ref object
+          Internal
+        body[0][0][2][0][2] = nnkRecList.newNimNode()
+        for v in signature.variables:
+          body[0][0][2][0][2].add deletePragmasFromIdent(v)
+        body
+
+      else:
+        let body = quote do:
+          type Internal = object
+          Internal
+        body[0][0][2][2] = nnkRecList.newNimNode()
+        for v in signature.variables:
+          body[0][0][2][2].add deletePragmasFromIdent(v)
+        body
+
+    internalBody.insert 1, defineConstructorFromScratch(signature)
+    internalBody.copyChildrenTo(rightHand)
+
+  result = typeDef
+  result[2] = rightHand
 
 macro protocol*(head: untyped; body: untyped = newEmptyNode()): untyped =
   var signature: ProtocolSignature
