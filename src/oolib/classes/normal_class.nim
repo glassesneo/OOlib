@@ -1,4 +1,5 @@
 import
+  std/algorithm,
   std/macros,
   std/sequtils,
   ./class_util
@@ -164,5 +165,5 @@ proc defineNormalClass*(
   result = defineType(signature)
 
   defineConstructors(signature)
-  for constructor in signature.constructors:
-    result.add(constructor)
+  for constructor in signature.constructors.reversed:
+    result.insert 1, constructor
