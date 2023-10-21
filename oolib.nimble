@@ -1,6 +1,6 @@
 # Package
 
-version       = "0.7.0"
+version       = "0.7.1"
 author        = "Glasses-Neo"
 description   = "A nimble package for object-oriented programming"
 license       = "WTFPL"

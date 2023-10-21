@@ -1,4 +1,5 @@
 import
+  std/algorithm,
   std/macrocache,
   std/macros,
   std/sequtils,
@@ -272,7 +273,7 @@ proc defineImplementClass*(
   result = defineType(signature)
 
   defineConstructors(signature)
-  for constructor in signature.constructors:
-    result.add(constructor)
+  for constructor in signature.constructors.reversed:
+    result.insert 1, constructor
 
   result.add defineConvertionProc(signature, tupleTy)
