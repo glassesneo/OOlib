@@ -1,4 +1,5 @@
 import
+  std/algorithm,
   std/macros,
   ./class_util
 
@@ -91,5 +92,5 @@ proc defineDistinctClass*(
   result = defineType(signature)
 
   defineConstructors(signature)
-  for constructor in signature.constructors:
-    result.add(constructor)
+  for constructor in signature.constructors.reversed:
+    result.insert 1, constructor
