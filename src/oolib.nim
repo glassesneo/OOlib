@@ -161,3 +161,15 @@ macro protocoled*(typeDef: untyped): untyped =
   result = typeDef
 
   ProtocolTable[protocolName.basename.strVal] = typeDef[2]
+
+macro isInstanceOf*(v, T: untyped): untyped =
+  return block:
+    if ProtocolTable.hasKey(T.strVal):
+      quote do:
+        when compiles(`v`.toProtocol()):
+          `v`.toProtocol().type is `T`
+        else:
+          false
+    else:
+      quote do:
+        `v`.type is `T`
