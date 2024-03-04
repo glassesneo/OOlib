@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
+### Added
+- `isInstanceOf` to check whether a variable can be converted to a certain protocol
 
 ## [v0.7.1] -2023-10-21
 ### Fixed
