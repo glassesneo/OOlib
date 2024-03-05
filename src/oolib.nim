@@ -63,10 +63,6 @@ proc classify(
 
     signature.classKind = ImplementClass
 
-    # for protocol in signature.protocols:
-    #   if not ProtocolTable.hasKey(protocol.strVal):
-    #     error fmt"Protocol {protocol} doesn't exist", protocol
-
   of nnkPragmaExpr:
     if signature.pragmas.len != 0:
       error "Unsupported syntax", definingNode
@@ -162,14 +158,11 @@ macro protocoled*(typeDef: untyped): untyped =
 
   ProtocolTable[protocolName.basename.strVal] = typeDef[2]
 
-macro isInstanceOf*(v, T: untyped): untyped =
-  return block:
-    if ProtocolTable.hasKey(T.strVal):
-      quote do:
-        when compiles(`v`.toProtocol()):
-          `v`.toProtocol().type is `T`
-        else:
-          false
+template isInstanceOf*(v, T: untyped): bool =
+  when ProtocolTable.hasKey(astToStr(T)):
+    when compiles(`v`.toProtocol()):
+      `v`.toProtocol().type is `T`
     else:
-      quote do:
-        `v`.type is `T`
+      false
+  else:
+    `v`.type is `T`
