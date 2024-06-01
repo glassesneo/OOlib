@@ -96,8 +96,12 @@ proc defineType(signature: ClassSignature): NimNode {.compileTime.} =
 
   if signature.isPublic:
     markWithAsterisk(typeSection)
-  if signature.pragmas.len > 0:
-    typeSection.addPragmas(signature.pragmas)
+  # if signature.pragmas.len > 0:
+  let derivePragma = newColonExpr(
+    ident "derive",
+    newLit(signature.protocols.map do(p: NimNode) -> string: p.strVal)
+  )
+  typeSection.addPragmas(signature.pragmas & derivePragma)
 
   typeSection.addVariables(signature.variables)
 

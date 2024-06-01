@@ -1,5 +1,6 @@
 import
-  std/macros
+  std/macros,
+  std/macrocache
 
 type
   ClassKind* = enum
@@ -18,6 +19,8 @@ type
     variables: seq[NimNode]
     routines: seq[NimNode]
     constructors: seq[NimNode]
+
+const ClassTable* = CacheTable"ClassCacheTable"
 
 const specialPragmas* = @[
   "initial"
