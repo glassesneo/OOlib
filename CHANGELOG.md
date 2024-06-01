@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 ### Added
-- `isInstanceOf` to check whether a variable can be converted to a certain protocol
+- `isInstanceOf` to check whether a variable is an instance of a certain class or protocol
 
 ## [v0.7.1] -2023-10-21
 ### Fixed
