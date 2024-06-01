@@ -1,28 +1,43 @@
 discard """
-  action: "compile"
+  action: "run"
 """
 
 import
   std/unittest,
   ../src/oolib
 
-protocol Readable:
-  var text: string
+protocol Animal:
+  proc breathe()
 
-class Book impl Readable:
-  var title: string
-  var text: string = ""
+protocol Dancable:
+  proc dance()
 
-class Human:
+protocol Unrelated:
+  proc unrelated()
+
+class Dog impl Animal:
   var name: string
+  proc breathe = discard
 
-let
-  book = Book.new(title = "Autobiography")
-  me = Human.new("Me")
+class Human impl (Animal, Dancable):
+  var name: string
+  proc breathe = discard
+  proc dance = discard
 
-check book.isInstanceOf(Readable)
-check book.isInstanceOf(Book)
-check me.isInstanceOf(Human)
+class Robot impl Dancable:
+  proc dance = discard
 
-check not me.isInstanceOf(Readable)
-check not book.isInstanceOf(Human)
+let doggo = Dog.new("Doggo")
+let man = Human.new("Man")
+let robot = Robot.new()
+
+check doggo.isInstanceOf Animal
+check doggo.isInstanceOf Dog
+
+check not doggo.isInstanceOf Human
+check not doggo.isInstanceOf Unrelated
+check not man.isInstanceOf Unrelated
+
+check man.isInstanceOf Animal
+check man.isInstanceOf Dancable
+check man.isInstanceOf Human

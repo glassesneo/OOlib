@@ -1,6 +1,7 @@
 import
   std/macrocache,
   std/macros,
+  std/typetraits,
   oolib/classes/[
     class_util,
     constructor_pragma,
@@ -158,11 +159,17 @@ macro protocoled*(typeDef: untyped): untyped =
 
   ProtocolTable[protocolName.basename.strVal] = typeDef[2]
 
-template isInstanceOf*(v, T: untyped): bool =
-  when ProtocolTable.hasKey(astToStr(T)):
-    when compiles(`v`.toProtocol()):
-      `v`.toProtocol().type is `T`
+template derive*(protocols: seq[string]) {.pragma.}
+
+macro isInstanceOf*(v: typed, T: typedesc): bool =
+  let variableType = v.getTypeImpl()
+  let protocolType = T.getImpl()
+  result = quote do:
+    when ProtocolTable.hasKey(astToStr(`T`)):
+      when compiles(`v`.toProtocol()):
+        (`v`.toProtocol().type is `T`) or (`T`.name in `v`.getCustomPragmaVal(derive))
+      else:
+        false
     else:
-      false
-  else:
-    `v`.type is `T`
+      `v`.type is `T`
+
