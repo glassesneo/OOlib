@@ -162,8 +162,6 @@ macro protocoled*(typeDef: untyped): untyped =
 template derive*(protocols: seq[string]) {.pragma.}
 
 macro isInstanceOf*(v: typed, T: typedesc): bool =
-  let variableType = v.getTypeImpl()
-  let protocolType = T.getImpl()
   result = quote do:
     when ProtocolTable.hasKey(astToStr(`T`)):
       when compiles(`v`.toProtocol()):
