@@ -20,9 +20,16 @@ class Person:
     name: string
     age = 0
 
+  proc greet =
+    echo "hello, I'm ", self.name
+
 let steve = Person.new(name = "Steve")
 let tony = Person.new(name = "Tony", age = 30)
+
+steve.greet()
+tony.greet()
 ```
+
 ### protocol
 ```nim
 import oolib
@@ -58,13 +65,18 @@ class HTMLWriter impl Writer:
 ```
 
 ## ✨Features
-- `class` macro
+- `class`
     - Automatic generation of constructor
     - `self` inserted in procedures
-    - all routines (e.g., method, converter, template) with the only exception of macro
-- `protocol` macro
-    - Provide an Kotlin-like interface
-    - defining setter/getter
+    - All routines (e.g., method, converter, template) are supported, excluding macro
+- `protocol`
+    - A Kotlin-like interface
+    - Defining setter/getter
+- `construct`
+    - An easy way to declare a class without `class`, only supporting normal class
+- `protocoled`
+    - The same as `construct`, but for interface
+- `isInstanceOf` for checking if a variable is an instance of a class or can be converted into a protocol
 
 ## Changelog
 See [CHANGELOG](https://github.com/Glasses-Neo/OOlib/blob/develop/CHANGELOG.md)
@@ -73,5 +85,5 @@ See [CHANGELOG](https://github.com/Glasses-Neo/OOlib/blob/develop/CHANGELOG.md)
 [![Twitter](https://img.shields.io/twitter/follow/Glassesman10.svg?style=social&label=@Glassesman10)](https://twitter.com/Glassesman10)
 
 ## License
-Copyright © 2021 Neo meganeo.programmer@gmail.com
+Copyright © 2024 Neo glassesneo@protonmail.com
 This work is free. You can redistribute it and/or modify it under the terms of the Do What The Fuck You Want To Public License, Version 2, as published by Sam Hocevar. See http://www.wtfpl.net/ for more details.
