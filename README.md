@@ -1,9 +1,8 @@
 # 👑OOlib
-![license](https://img.shields.io/github/license/Glasses-Neo/OOlib?color=blueviolet)
-[![test](https://github.com/Glasses-Neo/OOlib/actions/workflows/test.yml/badge.svg)](https://github.com/Glasses-Neo/OOlib/actions/workflows/test.yml)
-![contributors](https://img.shields.io/github/contributors/Glasses-Neo/OOlib?color=important)
-![stars](https://img.shields.io/github/stars/Glasses-Neo/OOlib?style=social)
-
+![license](https://img.shields.io/github/license/glassesneo/OOlib?color=blueviolet)
+[![test](https://github.com/glassesneo/OOlib/actions/workflows/test.yml/badge.svg)](https://github.com/glassesneo/OOlib/actions/workflows/test.yml)
+![contributors](https://img.shields.io/github/contributors/glassesneo/OOlib?color=important)
+![stars](https://img.shields.io/github/stars/glassesneo/OOlib?style=social)
 
 **OOlib is currently work in progress**🔥
 
@@ -64,6 +63,8 @@ class HTMLWriter impl Writer:
     self.writable.text = text
 ```
 
+See [doc.md](https://github.com/glassesneo/OOlib/blob/develop/docs/doc.md)
+
 ## ✨Features
 - `class`
     - Automatic generation of constructor
@@ -84,10 +85,7 @@ class HTMLWriter impl Writer:
 - `sealed class` from Kotlin
 
 ## Changelog
-See [CHANGELOG](https://github.com/Glasses-Neo/OOlib/blob/develop/CHANGELOG.md)
-
-## 🥷Author
-[![Twitter](https://img.shields.io/twitter/follow/Glassesman10.svg?style=social&label=@Glassesman10)](https://twitter.com/Glassesman10)
+See [CHANGELOG](https://github.com/glassesneo/OOlib/blob/develop/CHANGELOG.md)
 
 ## License
 Copyright © 2024 Neo glassesneo@protonmail.com
