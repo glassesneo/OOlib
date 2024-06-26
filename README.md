@@ -78,6 +78,11 @@ class HTMLWriter impl Writer:
     - The same as `construct`, but for interface
 - `isInstanceOf` for checking if a variable is an instance of a class or can be converted into a protocol
 
+## 💭Planning
+- `struct` from Swift
+- `dataclass` from Kotlin
+- `sealed class` from Kotlin
+
 ## Changelog
 See [CHANGELOG](https://github.com/Glasses-Neo/OOlib/blob/develop/CHANGELOG.md)
 
