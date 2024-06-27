@@ -2,3 +2,5 @@ nimcache
 testresults*
 tests/*
 !*.nim
+.direnv
+/direnv
