@@ -1,5 +1,9 @@
-## class
-Generates a `ref object`. It's simple and easy to use it.
+> [!WARNING]
+> Since OOlib is currently work in progress, the features may change easily.
+
+# class
+Generates a `ref object`.
+Generics and inheritance are not supported.
 
 ```nim
 class pub Color:
@@ -9,14 +13,14 @@ class pub Color:
     ...
 ```
 
-### export marker
-Unlike other identifiers, the name of `class` cannot be modified with `*` to export. `pub` keyword is used instead.
+## export marker
+Unlike other identifiers, the name of `class` cannot be modified with `*` to export. Use `pub` keyword instead.
 ```nim
 class pub Color:
   var colorCode: string
 ```
 
-### member variable
+## member variable
 Only the `var` statement is supported. It can have a default value.
 
 ```nim
@@ -25,7 +29,7 @@ class Square:
   var color: Color
 ```
 
-### routines
+## routines
 `class` can have the all routines in Nim, excluding `macro`. The special keyword `self`, an identifier to represent the instance of a type, is automatically inserted as a first argument of a routine.
 
 ```nim
@@ -40,9 +44,9 @@ class Square:
     return self.width * self.height
 ```
 
-### constructor
-#### automatic definition
-`class` reads its variable signatures and make them into its constructor's argument. If signatures include default values, they are also applied to the constructor's arguments.
+## constructor
+### automatic definition
+`class` reads its variable signatures and make them into its constructor's argument. If there are default values in the signatures, they are also applied to the constructor's arguments.
 
 ```nim
 class Square:
@@ -57,8 +61,8 @@ let square1 = Square.new(5, 7)
 let square2 = Square.new(7, 6, "#ffffff")
 ```
 
-#### {.initial.} pragma
-You can declare a variable that has an initial value by `{.initial.}`. Unlike the default value, a variable with an initial value is not added to the constructor's arguments, which means an initial value is absolutely substituted for the variable.
+### {.initial.} pragma
+You can declare a variable that has an initial value by `{.initial.}`. Unlike the default value, an initial value has nothing to do with the constructor and an initial value is absolutely substituted for its variable.
 ```nim
 class Square:
   var width: int
@@ -69,8 +73,8 @@ let square1 = Square.new(5, "#000000")
 let square2 = Square.new(7, 6, "#ffffff") # not compiled
 ```
 
-#### manual definition
-There is also a way to define a constructor manually. The constructor in `class` is represented as `new`. It can be defined like a normal procedure and is similar to `__init__` in Python.
+### manual definition
+There is a way to define a constructor manually. The constructor in `class` is represented as `new`. It can be defined like a normal procedure and is similar to `__init__` in Python.
 
 ```nim
 class Square:
@@ -102,7 +106,7 @@ class Square:
     ...
 ```
 
-### distinct class
+## distinct class
 `class` can also handle `distinct` type. It's easy to read and write.
 ```nim
 class Dollar(distinct int):
@@ -115,7 +119,7 @@ class Dollar(distinct int):
 var myMoney = 12.Dollar
 ```
 
-### named tuple class
+## named tuple class
 You can define named tuple as well.
 ```nim
 class Person(tuple):
