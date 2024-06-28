@@ -51,10 +51,10 @@ proc combineProtocolTupleTys(
         result.add identDef
 
 proc checkIfVariableIsImplemented(
-    variables: seq[NimNode],
+    signature: ClassSignature,
     identDef: NimNode
 ) {.compileTime.} =
-  for v in variables:
+  for v in signature.variables:
 
     if deletePragmasFromIdent(v)[0].eqIdent deletePragmasFromIdent(identDef)[0]:
       return
@@ -63,20 +63,20 @@ proc checkIfVariableIsImplemented(
     if identDef[0].kind == nnkPragmaExpr: identDef[0][0]
     else: identDef[0]
 
-  error fmt"{node} is unimplemented", node
+  error fmt"{node} is unimplemented", signature.className
 
 proc checkIfProcIsImplemented(
-    procedures: seq[NimNode],
+    signature: ClassSignature,
     identDef: NimNode
 ) {.compileTime.} =
-  for p in procedures:
+  for p in signature.procedures:
     let
       hasSameName = p.name.eqIdent identDef[0]
       hasSameParams = p.params.sameType identDef[1][0]
     if hasSameName and hasSameParams:
       return
 
-  error fmt"{identDef[0]} is unimplemented", identDef[0]
+  error fmt"{identDef[0]} is unimplemented", signature.className
 
 template implementClass(className) =
   type className = ref object
@@ -270,9 +270,9 @@ proc defineImplementClass*(
 
   for identDef in tupleTy:
     if identDef[1].kind == nnkProcTy:
-      signature.procedures.checkIfProcIsImplemented(identDef)
+      signature.checkIfProcIsImplemented(identDef)
     else:
-      signature.variables.checkIfVariableIsImplemented(identDef)
+      signature.checkIfVariableIsImplemented(identDef)
 
   result = defineType(signature)
 
