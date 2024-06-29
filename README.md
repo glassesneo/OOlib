@@ -63,7 +63,7 @@ class HTMLWriter impl Writer:
     self.writable.text = text
 ```
 
-See [doc.md](https://github.com/glassesneo/OOlib/blob/develop/docs/doc.md)
+See [doc.md](https://github.com/glassesneo/OOlib/blob/develop/docs/doc.md) for more details
 
 ## ✨Features
 - `class`
