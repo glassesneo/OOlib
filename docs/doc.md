@@ -133,3 +133,105 @@ let luigi: Person = ("Luigi", 26)
 luigi.greet()
 ```
 
+# protocol and implementation
+The role of `protocol` is to provide the features of interface in other languages. `class` can implement `protocol`.
+
+## protocol attributes
+`protocol` can only have variables and procedures. The default value and default implementation are not supported.
+```nim
+protocol AnimalBehavior:
+  var name: string
+
+  proc eat(something: string)
+  proc move
+```
+
+## implementation class
+`class` can implement `protocol` via `impl` keyword. `class` must define the implementation of each attribute defined in `protocol`.
+```nim
+class Dog impl AnimalBehavior:
+  var name: string
+
+  proc eat(something: string) =
+    echo "eating", " ", something, "!"
+
+  proc move =
+    echo "moving!"
+
+  proc bark =
+    echo "bark!"
+```
+
+### multiple implementation
+Multiple implementation is supported. The attributes all the protocols have must be defined in `class`.
+```nim
+protocol CanFly:
+  proc fly
+
+class Bird impl (AnimalBehavior, CanFly):
+  var name: string
+
+  proc eat(something: string) =
+    echo "eating ", something, "!"
+
+  proc move =
+    echo "moving!"
+
+  proc fly =
+    echo "flying!"
+```
+
+### overloading
+Thanks to Nim's procedure overloading, no error occurs when the multiple procedures with the same name are defined, provided their signatures aren't same.
+```nim
+protocol PFoo:
+  proc doSomething(x: string)
+
+protocol PBar:
+  proc doSomething(x: int)
+
+class FooBar impl (PFoo, PBar):
+  # implements PFoo's procedure
+  proc doSomething(x: string) =
+    echo "do something"
+
+  # implements PBar's procedure
+  proc doSomething(x: int) =
+    echo "do something"
+
+  # defines its own procedure
+  proc doSomething(x: bool) =
+    echo "do something"
+```
+
+### converting `class` to protocol tuple
+when you use `protocol` and call a function that requires its type, you must call `toProtocol()`.
+```nim
+class Cat impl AnimalBehavior:
+  proc eat(something: string) =
+    echo "eating", " ", something, "!"
+
+  proc move =
+    echo "moving!"
+
+  proc meow =
+    echo "meow!"
+
+class Registry:
+  proc registerAnimal(registry: Registry, animal: AnimalBehavior) =
+    ...
+
+let registry = Registry.new()
+
+let
+  dog = Dog.new("dog")
+  cat = Cat.new("cat")
+
+
+var animals: seq[AnimalBehavior] = @[]
+animals.add dog.toProtocol()
+animals.add cat.toProtocol()
+
+for animal in animals:
+  registry.registerAnimal(animal)
+```
