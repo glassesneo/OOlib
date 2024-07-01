@@ -171,3 +171,10 @@ macro isInstanceOf*(v: typed, T: typedesc): bool =
     else:
       `v`.type is `T`
 
+macro pick*(t, P: untyped): tuple =
+  let tupleTy = ProtocolTable[P.strVal]
+  result = nnkTupleConstr.newTree()
+  for v in tupleTy:
+    let name = v[0]
+    result.add newColonExpr(name, t.newDotExpr(name))
+

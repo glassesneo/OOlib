@@ -36,8 +36,13 @@ class HTMLWriter impl Writer:
 
 let book = Book.new(price = 500)
 
-let _ = book.toProtocol()
-
 let diary = Diary.new(price = 300)
 
-let _ = diary.toProtocol()
+var products: seq[Product] = @[]
+
+products.add book.toProtocol().pick(Product)
+
+products.add diary.toProtocol().pick(Product)
+
+for product in products:
+  echo product.price
