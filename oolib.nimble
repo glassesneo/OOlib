@@ -1,15 +1,16 @@
 # Package
 
-version       = "0.7.1"
-author        = "Glasses-Neo"
-description   = "A nimble package for object-oriented programming"
-license       = "WTFPL"
-srcDir        = "src"
+version = "0.7.1"
+author = "Glasses-Neo"
+description = "A nimble package for object-oriented programming"
+license = "WTFPL"
+srcDir = "src"
 
 
 # Dependencies
 
 requires "nim >= 2.0.0"
+requires "nimlangserver#head"
 
 task tests, "Run all tests":
   exec "testament p 'tests/**.nim'"

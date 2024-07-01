@@ -96,54 +96,6 @@
           "store_path": "/nix/store/q5i99p78fhyb2dyw1virds9jjd2f4qh6-nimble-0.14.2"
         }
       }
-    },
-    "nimlangserver@latest": {
-      "last_modified": "2024-06-12T20:55:33Z",
-      "resolved": "github:NixOS/nixpkgs/a9858885e197f984d92d7fe64e9fff6b2e488d40#nimlangserver",
-      "source": "devbox-search",
-      "version": "1.2.0",
-      "systems": {
-        "aarch64-darwin": {
-          "outputs": [
-            {
-              "name": "out",
-              "path": "/nix/store/w6rrpdk2x5cb8vvv5mmj6kaq8cdvcz89-nimlangserver-1.2.0",
-              "default": true
-            }
-          ],
-          "store_path": "/nix/store/w6rrpdk2x5cb8vvv5mmj6kaq8cdvcz89-nimlangserver-1.2.0"
-        },
-        "aarch64-linux": {
-          "outputs": [
-            {
-              "name": "out",
-              "path": "/nix/store/gwxlq3r583i6f9chki7jqlsvh6djida8-nimlangserver-1.2.0",
-              "default": true
-            }
-          ],
-          "store_path": "/nix/store/gwxlq3r583i6f9chki7jqlsvh6djida8-nimlangserver-1.2.0"
-        },
-        "x86_64-darwin": {
-          "outputs": [
-            {
-              "name": "out",
-              "path": "/nix/store/l7qa4rjla6qkpv2qx2z2hv71scl7qpf8-nimlangserver-1.2.0",
-              "default": true
-            }
-          ],
-          "store_path": "/nix/store/l7qa4rjla6qkpv2qx2z2hv71scl7qpf8-nimlangserver-1.2.0"
-        },
-        "x86_64-linux": {
-          "outputs": [
-            {
-              "name": "out",
-              "path": "/nix/store/fxm9j420kwi4nfmk86v16kg69djzcyqg-nimlangserver-1.2.0",
-              "default": true
-            }
-          ],
-          "store_path": "/nix/store/fxm9j420kwi4nfmk86v16kg69djzcyqg-nimlangserver-1.2.0"
-        }
-      }
     }
   }
 }
