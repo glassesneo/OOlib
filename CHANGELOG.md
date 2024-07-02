@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## [Unreleased]
 ### Added
 - `isInstanceOf` to check whether a variable is an instance of a certain class or protocol
+- `pick` to convert implementation class to a specific protocol
+
+### Changed
+- Changed the error message when a procedure is unimplemented in implementation class
 
 ## [v0.7.1] -2023-10-21
 ### Fixed
