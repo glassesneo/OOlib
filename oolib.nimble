@@ -10,7 +10,6 @@ srcDir = "src"
 # Dependencies
 
 requires "nim >= 2.0.0"
-requires "nimlangserver#head"
 
 task tests, "Run all tests":
   exec "testament p 'tests/**.nim'"
